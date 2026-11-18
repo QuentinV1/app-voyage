@@ -1,0 +1,130 @@
+import { useState } from 'react';
+import { useMapsLibrary } from '@vis.gl/react-google-maps';
+import { useAuth } from '../lib/auth';
+import { suggestForDay, type AiPlace } from '../lib/ai';
+import { addPlacesBatch } from '../lib/db';
+import { CATEGORIES } from '../lib/categories';
+import { fromGooglePlace, searchPlace } from '../lib/places';
+import { useTripCtx } from '../lib/tripContext';
+import type { NewPlace, Place } from '../lib/types';
+import { Button, Field, Sheet, Spinner, inputClass } from './ui';
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  date: string;
+  defaultCity: string;
+  existing: Place[];
+}
+
+/** Génère des suggestions Gemini pour une journée, puis les géolocalise via Google Places */
+export default function AiSuggestSheet({ open, onClose, date, defaultCity, existing }: Props) {
+  const { trip, places } = useTripCtx();
+  const { email } = useAuth();
+  const lib = useMapsLibrary('places');
+  const [city, setCity] = useState(defaultCity);
+  const [wishes, setWishes] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<AiPlace[]>([]);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  const generate = async () => {
+    setBusy('Gemini réfléchit…');
+    setError(null);
+    try {
+      const res = await suggestForDay(trip, date, city, wishes, existing.map((p) => p.name));
+      setResults(res);
+      setSelected(new Set(res.map((_, i) => i)));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const add = async () => {
+    const chosen = results.filter((_, i) => selected.has(i));
+    setBusy('Recherche des lieux sur Google Maps…');
+    try {
+      const out: NewPlace[] = [];
+      for (const r of chosen) {
+        const gp = lib ? await searchPlace(lib, `${r.name} ${r.city ?? city}`) : null;
+        const base = { date, addedBy: `✨ IA (${email ?? ''})`, time: r.time, notes: r.notes };
+        out.push(
+          gp
+            ? { ...fromGooglePlace(gp, base), category: r.category }
+            : { ...base, name: r.name, city: r.city ?? city, category: r.category },
+        );
+      }
+      await addPlacesBatch(trip.id, out, places);
+      setResults([]);
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggle = (i: number) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(i)) n.delete(i);
+      else n.add(i);
+      return n;
+    });
+
+  return (
+    <Sheet open={open} onClose={onClose} title="✨ Idées pour la journée">
+      {busy ? (
+        <div className="py-8">
+          <Spinner label={busy} />
+        </div>
+      ) : results.length === 0 ? (
+        <div className="space-y-4">
+          <Field label="Ville / quartier">
+            <input className={inputClass} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Kyoto, Asakusa…" />
+          </Field>
+          <Field label="Vos envies">
+            <textarea
+              className={inputClass}
+              rows={3}
+              value={wishes}
+              onChange={(e) => setWishes(e.target.value)}
+              placeholder="Temples tôt le matin pour éviter la foule, ramen le midi, pas trop de marche…"
+            />
+          </Field>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <Button className="w-full" onClick={generate}>
+            Générer avec Gemini
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {results.map((r, i) => (
+            <label key={i} className="flex gap-3 rounded-xl border border-slate-100 p-3">
+              <input type="checkbox" className="mt-1 h-5 w-5 accent-rose-600" checked={selected.has(i)} onChange={() => toggle(i)} />
+              <div>
+                <p className="font-medium">
+                  {r.time && <span className="text-slate-500">{r.time} · </span>}
+                  {CATEGORIES[r.category]?.emoji} {r.name}
+                </p>
+                {r.notes && <p className="text-sm text-slate-600">{r.notes}</p>}
+              </div>
+            </label>
+          ))}
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setResults([])}>
+              Recommencer
+            </Button>
+            <Button className="flex-1" disabled={selected.size === 0} onClick={add}>
+              Ajouter {selected.size} lieu{selected.size > 1 ? 'x' : ''}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Sheet>
+  );
+}
