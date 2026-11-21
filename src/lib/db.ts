@@ -1,27 +1,33 @@
 import { useEffect, useState } from 'react';
 import {
-  addDoc,
   collection,
-  deleteDoc,
-  deleteField,
   doc,
   onSnapshot,
   query,
   setDoc,
-  updateDoc,
   where,
-  writeBatch,
-  type FieldValue,
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
-import { db } from './firebase';
+import { cleanForFirestore, db, isFirebaseConfigured } from './firebase';
+import {
+  addJournalEntryLocal,
+  addPlaceLocal,
+  addPlacesBatchLocal,
+  createTripLocal,
+  deleteJournalEntryLocal,
+  deletePlaceLocal,
+  getCloudSnapshot,
+  getStoreSnapshot,
+  nextOrder,
+  normalizeEmails,
+  setDayInfoLocal,
+  subscribeStore,
+  swapOrderLocal,
+  updateJournalEntryLocal,
+  updatePlaceLocal,
+  updateTripLocal,
+} from './store';
 import type { DayInfo, JournalEntry, NewJournalEntry, NewPlace, Place, Trip, UserProfile } from './types';
-
-const tripsCol = () => collection(db, 'trips');
-const placesCol = (tripId: string) => collection(db, 'trips', tripId, 'places');
-const daysCol = (tripId: string) => collection(db, 'trips', tripId, 'days');
-const journalCol = (tripId: string) => collection(db, 'trips', tripId, 'journal');
-const usersCol = () => collection(db, 'users');
 
 interface Live<T> {
   data: T;
@@ -36,17 +42,18 @@ interface Live<T> {
 /* ------------------------------------------------------------------ */
 
 export async function upsertUserProfile(user: User) {
+  if (!isFirebaseConfigured || !db) return;
   const email = user.email?.trim().toLowerCase();
   if (!email) return;
   await setDoc(
     doc(db, 'users', user.uid),
-    {
+    cleanForFirestore({
       uid: user.uid,
       email,
-      displayName: user.displayName || email.split('@')[0],
+      displayName: (user.displayName || email.split('@')[0]).slice(0, 120),
       photoURL: user.photoURL || null,
       updatedAt: Date.now(),
-    },
+    }),
     { merge: true },
   );
 }
@@ -56,10 +63,10 @@ export function useUserProfiles(emails: string[]): Record<string, UserProfile> {
   const key = [...emails].sort().join(',');
 
   useEffect(() => {
-    const clean = normalizeEmails(emails);
+    if (!isFirebaseConfigured || !db) return;
+    const clean = normalizeEmails(emails).filter((e) => e !== 'local@offline');
     if (!clean.length) return;
-    // Firestore `in` accepte jusqu'à 30 valeurs
-    const q = query(usersCol(), where('email', 'in', clean.slice(0, 30)));
+    const q = query(collection(db, 'users'), where('email', 'in', clean.slice(0, 30)));
     return onSnapshot(
       q,
       (snap) => {
@@ -81,216 +88,119 @@ export function useUserProfiles(emails: string[]): Record<string, UserProfile> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Hooks temps réel                                                    */
+/* Hooks Local-First synchronisés avec Firestore                       */
 /* ------------------------------------------------------------------ */
 
-export function useTrips(email: string | null): Live<Trip[]> {
-  const [state, setState] = useState<Live<Trip[]>>({ data: [], loading: true, error: null });
-  useEffect(() => {
-    if (!email) return;
-    const q = query(tripsCol(), where('memberEmails', 'array-contains', email));
-    return onSnapshot(
-      q,
-      { includeMetadataChanges: true },
-      (snap) => {
-        const trips = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Trip);
-        trips.sort((a, b) => a.startDate.localeCompare(b.startDate));
-        setState({
-          data: trips,
-          loading: false,
-          error: null,
-          fromCache: snap.metadata.fromCache,
-          hasPendingWrites: snap.metadata.hasPendingWrites,
-        });
-      },
-      (error) => setState({ data: [], loading: false, error }),
-    );
-  }, [email]);
-  return state;
+function useStoreState() {
+  const [, setTick] = useState(0);
+  useEffect(() => subscribeStore(() => setTick((n) => n + 1)), []);
+  return { store: getStoreSnapshot(), cloud: getCloudSnapshot() };
+}
+
+export function useTrips(_email: string | null): Live<Trip[]> {
+  const { store, cloud } = useStoreState();
+  return {
+    data: store.trips,
+    loading: false,
+    error: cloud.syncError ? new Error(cloud.syncError) : null,
+    hasPendingWrites: cloud.syncStatus === 'syncing',
+  };
 }
 
 export function useTrip(tripId: string | undefined): Live<Trip | null> {
-  const [state, setState] = useState<Live<Trip | null>>({ data: null, loading: true, error: null });
-  useEffect(() => {
-    if (!tripId) return;
-    return onSnapshot(
-      doc(db, 'trips', tripId),
-      { includeMetadataChanges: true },
-      (snap) =>
-        setState({
-          data: snap.exists() ? ({ id: snap.id, ...snap.data() } as Trip) : null,
-          loading: false,
-          error: null,
-          fromCache: snap.metadata.fromCache,
-          hasPendingWrites: snap.metadata.hasPendingWrites,
-        }),
-      (error) => setState({ data: null, loading: false, error }),
-    );
-  }, [tripId]);
-  return state;
+  const { store, cloud } = useStoreState();
+  const trip = tripId ? store.trips.find((t) => t.id === tripId) ?? null : null;
+  return {
+    data: trip,
+    loading: false,
+    error: cloud.syncError ? new Error(cloud.syncError) : null,
+    hasPendingWrites: cloud.syncStatus === 'syncing',
+  };
 }
 
 export function usePlaces(tripId: string | undefined): Live<Place[]> {
-  const [state, setState] = useState<Live<Place[]>>({ data: [], loading: true, error: null });
-  useEffect(() => {
-    if (!tripId) return;
-    return onSnapshot(
-      placesCol(tripId),
-      { includeMetadataChanges: true },
-      (snap) => {
-        const places = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Place);
-        places.sort((a, b) => a.order - b.order);
-        setState({
-          data: places,
-          loading: false,
-          error: null,
-          fromCache: snap.metadata.fromCache,
-          hasPendingWrites: snap.metadata.hasPendingWrites,
-        });
-      },
-      (error) => setState({ data: [], loading: false, error }),
-    );
-  }, [tripId]);
-  return state;
+  const { store, cloud } = useStoreState();
+  const places = tripId ? store.placesByTrip[tripId] ?? [] : [];
+  return {
+    data: places,
+    loading: false,
+    error: cloud.syncError ? new Error(cloud.syncError) : null,
+    hasPendingWrites: cloud.syncStatus === 'syncing',
+  };
 }
 
 export function useDays(tripId: string | undefined): Live<Record<string, DayInfo>> {
-  const [state, setState] = useState<Live<Record<string, DayInfo>>>({ data: {}, loading: true, error: null });
-  useEffect(() => {
-    if (!tripId) return;
-    return onSnapshot(
-      daysCol(tripId),
-      (snap) => {
-        const days: Record<string, DayInfo> = {};
-        snap.docs.forEach((d) => (days[d.id] = { id: d.id, ...d.data() } as DayInfo));
-        setState({ data: days, loading: false, error: null });
-      },
-      (error) => setState({ data: {}, loading: false, error }),
-    );
-  }, [tripId]);
-  return state;
+  const { store, cloud } = useStoreState();
+  const days = tripId ? store.daysByTrip[tripId] ?? {} : {};
+  return {
+    data: days,
+    loading: false,
+    error: cloud.syncError ? new Error(cloud.syncError) : null,
+    hasPendingWrites: cloud.syncStatus === 'syncing',
+  };
 }
 
 export function useJournal(tripId: string | undefined): Live<JournalEntry[]> {
-  const [state, setState] = useState<Live<JournalEntry[]>>({ data: [], loading: true, error: null });
-  useEffect(() => {
-    if (!tripId) return;
-    return onSnapshot(
-      journalCol(tripId),
-      { includeMetadataChanges: true },
-      (snap) => {
-        const entries = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as JournalEntry);
-        entries.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
-        setState({
-          data: entries,
-          loading: false,
-          error: null,
-          fromCache: snap.metadata.fromCache,
-          hasPendingWrites: snap.metadata.hasPendingWrites,
-        });
-      },
-      (error) => setState({ data: [], loading: false, error }),
-    );
-  }, [tripId]);
-  return state;
+  const { store, cloud } = useStoreState();
+  const journal = tripId ? store.journalByTrip[tripId] ?? [] : [];
+  return {
+    data: journal,
+    loading: false,
+    error: cloud.syncError ? new Error(cloud.syncError) : null,
+    hasPendingWrites: cloud.syncStatus === 'syncing',
+  };
 }
 
 /* ------------------------------------------------------------------ */
-/* Écritures                                                          */
+/* Écritures (Local-First + Push debounced 450 ms)                     */
 /* ------------------------------------------------------------------ */
 
 export async function createTrip(input: Omit<Trip, 'id' | 'createdAt'>): Promise<string> {
-  const ref = await addDoc(tripsCol(), {
-    ...input,
-    memberEmails: normalizeEmails(input.memberEmails),
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  });
-  return ref.id;
+  return createTripLocal(input);
 }
 
 export function updateTrip(tripId: string, patch: Partial<Omit<Trip, 'id'>>) {
-  const data = { ...patch, updatedAt: Date.now() };
-  if (data.memberEmails) data.memberEmails = normalizeEmails(data.memberEmails);
-  return updateDoc(doc(db, 'trips', tripId), data);
+  return updateTripLocal(tripId, patch);
 }
 
 export function setDayInfo(tripId: string, date: string, patch: Omit<DayInfo, 'id'>) {
-  return setDoc(doc(db, 'trips', tripId, 'days', date), patch, { merge: true });
+  return setDayInfoLocal(tripId, date, patch);
 }
 
-export function nextOrder(places: Place[], date: string | null): number {
-  const same = places.filter((p) => p.date === date);
-  return same.length ? Math.max(...same.map((p) => p.order)) + 1 : 0;
-}
+export { nextOrder, normalizeEmails };
 
 export function addPlace(tripId: string, place: NewPlace, existing: Place[]) {
-  return addDoc(placesCol(tripId), {
-    ...place,
-    order: place.order ?? nextOrder(existing, place.date),
-    createdAt: Date.now(),
-  });
+  return addPlaceLocal(tripId, place, existing);
 }
 
-/** Ajout groupé (import / IA) */
 export async function addPlacesBatch(tripId: string, places: NewPlace[], existing: Place[]) {
-  const orders = new Map<string, number>();
-  const batch = writeBatch(db);
-  for (const p of places) {
-    const key = p.date ?? '__ideas__';
-    const start = orders.get(key) ?? nextOrder(existing, p.date);
-    orders.set(key, start + 1);
-    batch.set(doc(placesCol(tripId)), { ...p, order: p.order ?? start, createdAt: Date.now() });
-  }
-  await batch.commit();
+  return addPlacesBatchLocal(tripId, places, existing);
 }
 
-/** Mise à jour partielle : une valeur `undefined` supprime le champ */
 export function updatePlace(tripId: string, placeId: string, patch: Partial<Omit<Place, 'id'>>) {
-  const data: Record<string, FieldValue | Place[keyof Place]> = {};
-  for (const [k, v] of Object.entries(patch)) data[k] = v === undefined ? deleteField() : v;
-  return updateDoc(doc(db, 'trips', tripId, 'places', placeId), data);
+  return updatePlaceLocal(tripId, placeId, patch);
 }
 
 export function deletePlace(tripId: string, placeId: string) {
-  return deleteDoc(doc(db, 'trips', tripId, 'places', placeId));
+  return deletePlaceLocal(tripId, placeId);
 }
 
-/** Échange l'ordre de deux lieux (monter / descendre) */
 export async function swapOrder(tripId: string, a: Place, b: Place) {
-  const batch = writeBatch(db);
-  batch.update(doc(db, 'trips', tripId, 'places', a.id), { order: b.order });
-  batch.update(doc(db, 'trips', tripId, 'places', b.id), { order: a.order === b.order ? a.order + 1 : a.order });
-  await batch.commit();
+  return swapOrderLocal(tripId, a, b);
 }
-
-/* ------------------------------------------------------------------ */
-/* Carnet de voyage                                                   */
-/* ------------------------------------------------------------------ */
 
 export function addJournalEntry(tripId: string, entry: NewJournalEntry) {
-  const now = Date.now();
-  return addDoc(journalCol(tripId), {
-    ...entry,
-    createdAt: now,
-    updatedAt: now,
-  });
+  return addJournalEntryLocal(tripId, entry);
 }
 
-export function updateJournalEntry(tripId: string, entryId: string, patch: Partial<Omit<JournalEntry, 'id' | 'createdAt'>>) {
-  const data: Record<string, FieldValue | JournalEntry[keyof JournalEntry]> = {
-    updatedAt: Date.now(),
-  };
-  for (const [k, v] of Object.entries(patch)) {
-    data[k] = v === undefined ? deleteField() : v;
-  }
-  return updateDoc(doc(db, 'trips', tripId, 'journal', entryId), data);
+export function updateJournalEntry(
+  tripId: string,
+  entryId: string,
+  patch: Partial<Omit<JournalEntry, 'id' | 'createdAt'>>,
+) {
+  return updateJournalEntryLocal(tripId, entryId, patch);
 }
 
 export function deleteJournalEntry(tripId: string, entryId: string) {
-  return deleteDoc(doc(db, 'trips', tripId, 'journal', entryId));
-}
-
-export function normalizeEmails(emails: string[]): string[] {
-  return [...new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
+  return deleteJournalEntryLocal(tripId, entryId);
 }

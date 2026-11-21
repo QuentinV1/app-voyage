@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Calendar,
   Check,
+  Cloud,
   Download,
   FileSpreadsheet,
   FileText,
@@ -24,7 +25,7 @@ import { Button, Card, Field, inputClass } from '../components/ui';
 
 export default function More() {
   const { trip, places, days, journal, memberProfiles, dayIndex, isOnline } = useTripCtx();
-  const { email, logout } = useAuth();
+  const { user, email, logout, openAuthModal } = useAuth();
   const navigate = useNavigate();
   const [newMember, setNewMember] = useState('');
   const [start, setStart] = useState(trip.startDate);
@@ -204,12 +205,23 @@ export default function More() {
           Exporter le planning en CSV
         </button>
         <button
-          className="flex w-full items-center gap-3 p-4 text-left text-sm font-medium text-red-600 hover:bg-red-50/60"
-          onClick={logout}
+          className="flex w-full items-center gap-3 p-4 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+          onClick={openAuthModal}
         >
-          <LogOut className="h-4 w-4" />
-          Se déconnecter
+          <Cloud className="h-4 w-4 text-brand" />
+          {user ? `Compte Cloud (${email})` : 'Se connecter au Cloud & synchroniser'}
         </button>
+        {user && (
+          <button
+            className="flex w-full items-center gap-3 p-4 text-left text-sm font-medium text-red-600 hover:bg-red-50/60"
+            onClick={() => {
+              if (confirm('Se déconnecter du compte Cloud ?')) logout();
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+            Se déconnecter
+          </button>
+        )}
       </Card>
 
       <Card className="space-y-1.5 p-4 text-sm text-slate-600">

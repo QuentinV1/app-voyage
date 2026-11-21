@@ -4,4 +4,6 @@ dev-dist
 .env.local
 .env.*.local
 .firebase
+firebase-debug.log
 *.log
+tsconfig.tsbuildinfo

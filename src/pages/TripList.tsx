@@ -1,46 +1,46 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, Plane, Plus, Users, WifiOff } from 'lucide-react';
+import { Plane, Plus, Users, WifiOff } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { createTrip, useTrips } from '../lib/db';
 import { daysUntil, formatShort } from '../lib/dates';
 import { useOnlineStatus } from '../lib/offline';
+import { CloudAuthHeaderButton } from '../components/CloudAuthModal';
 import { Button, Card, Empty, Field, Sheet, Spinner, inputClass } from '../components/ui';
 
 export default function TripList() {
-  const { email, user, logout } = useAuth();
+  const { email, user } = useAuth();
   const { data: trips, loading, error } = useTrips(email);
   const isOnline = useOnlineStatus();
   const [open, setOpen] = useState(false);
 
   return (
     <div className="pt-safe mx-auto max-w-lg p-4">
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-6 flex items-center justify-between gap-2">
         <div>
-          <p className="text-sm text-slate-500">Bonjour {user?.displayName?.split(' ')[0] || email?.split('@')[0]}</p>
+          <p className="text-sm text-slate-500">
+            {user ? `Bonjour ${user.displayName?.split(' ')[0] || email?.split('@')[0]}` : 'Mode local hors-compte'}
+          </p>
           <h1 className="text-2xl font-bold">Nos voyages</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {!isOnline && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
               <WifiOff className="h-3.5 w-3.5" />
               Hors-ligne
             </span>
           )}
-          <button onClick={logout} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
-            <LogOut className="h-4 w-4" />
-            Déconnexion
-          </button>
+          <CloudAuthHeaderButton variant="light" />
         </div>
       </header>
 
       {loading && <Spinner />}
-      {error && <p className="text-red-600">Erreur : {error.message}</p>}
+      {error && <p className="mb-3 text-xs font-medium text-red-600">{error.message}</p>}
 
       {!loading && trips.length === 0 && (
         <Empty icon="" title="Aucun voyage pour l'instant">
           <Plane className="mx-auto mb-1 h-8 w-8 text-slate-300" />
-          <p className="text-sm">Crée le voyage puis ajoute l'e-mail de tes proches pour le partager.</p>
+          <p className="text-sm">Crée un voyage en local ou connecte-toi au Cloud pour synchroniser avec tes proches.</p>
         </Empty>
       )}
 
@@ -91,15 +91,16 @@ function NewTripSheet({ open, onClose }: { open: boolean; onClose: () => void })
   const valid = name.trim() && start && end && end >= start;
 
   const submit = async () => {
-    if (!email || !valid) return;
+    if (!valid) return;
     setBusy(true);
     try {
+      const activeEmail = email || 'local@offline';
       const id = await createTrip({
         name: name.trim(),
         startDate: start,
         endDate: end,
-        memberEmails: [email, ...members.split(/[\s,;]+/)],
-        createdBy: email,
+        memberEmails: [activeEmail, ...members.split(/[\s,;]+/)],
+        createdBy: activeEmail,
       });
       onClose();
       navigate(`/trip/${id}`);

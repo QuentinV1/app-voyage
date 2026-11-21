@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { Link, NavLink, Outlet, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, CalendarDays, Lightbulb, MapPin, Settings, WifiOff } from 'lucide-react';
+import { CloudAuthHeaderButton } from '../components/CloudAuthModal';
 import { useDays, useJournal, usePlaces, useTrip, useUserProfiles } from '../lib/db';
 import { listDates } from '../lib/dates';
 import { loadTripSnapshot, saveTripSnapshot, useOnlineStatus } from '../lib/offline';
@@ -81,12 +82,15 @@ export default function TripLayout() {
             </Link>
             <h1 className="truncate text-lg font-semibold">{activeTrip.name}</h1>
           </div>
-          {!isOnline && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[11px] font-medium text-white">
-              <WifiOff className="h-3 w-3" />
-              Hors-ligne
-            </span>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            {!isOnline && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[11px] font-medium text-white">
+                <WifiOff className="h-3 w-3" />
+                Hors-ligne
+              </span>
+            )}
+            <CloudAuthHeaderButton variant="dark" />
+          </div>
         </div>
         {!isOnline && (
           <div className="bg-amber-50 px-4 py-1.5 text-center text-xs text-amber-800">
