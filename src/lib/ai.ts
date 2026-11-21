@@ -3,7 +3,7 @@ import { app } from './firebase';
 import { CATEGORY_KEYS } from './categories';
 import type { Category, Trip } from './types';
 
-const MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.8-flash';
 
 /* ------------------------------------------------------------------ */
 /* Schéma de sortie structurée                                         */

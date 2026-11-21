@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Calendar,
   Check,
   Cloud,
   Download,
+  ExternalLink,
   FileSpreadsheet,
   FileText,
   HardDriveDownload,
+  LayoutGrid,
   LogOut,
   Share2,
   Smartphone,
@@ -32,6 +34,16 @@ export default function More() {
   const [end, setEnd] = useState(trip.endDate);
   const [shareCopied, setShareCopied] = useState(false);
   const [offlineSavedAt, setOfflineSavedAt] = useState<number | null>(() => loadTripSnapshot(trip.id)?.savedAt ?? null);
+  const [showOtherApps, setShowOtherApps] = useState(false);
+
+  useEffect(() => {
+    if (!showOtherApps) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowOtherApps(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showOtherApps]);
 
   const addMember = async () => {
     const emails = normalizeEmails(newMember.split(/[\s,;]+/));
@@ -211,6 +223,13 @@ export default function More() {
           <Cloud className="h-4 w-4 text-brand" />
           {user ? `Compte Cloud (${email})` : 'Se connecter au Cloud & synchroniser'}
         </button>
+        <button
+          className="flex w-full items-center gap-3 p-4 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+          onClick={() => setShowOtherApps(true)}
+        >
+          <LayoutGrid className="h-4 w-4 text-brand" />
+          Mes autres applications
+        </button>
         {user && (
           <button
             className="flex w-full items-center gap-3 p-4 text-left text-sm font-medium text-red-600 hover:bg-red-50/60"
@@ -236,6 +255,71 @@ export default function More() {
           <b>Android</b> : ouvrir le lien dans Chrome → menu ⋮ → « Installer l'application ».
         </p>
       </Card>
+
+      {showOtherApps && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          onClick={() => setShowOtherApps(false)}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <LayoutGrid className="h-4 w-4 text-brand" />
+                Mes autres applications
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowOtherApps(false)}
+                aria-label="Fermer"
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 space-y-2 overflow-y-auto p-5">
+              <p className="text-xs text-slate-500">
+                Retrouvez toutes les autres applications hébergées sur GitHub Pages.
+              </p>
+              <div className="grid gap-2">
+                {[
+                  { name: "L'Affinoir", desc: "Charcuterie, salaisons & cave d'affinage", url: 'https://quentinv1.github.io/app-charcuterie/' },
+                  { name: 'Pêche France', desc: 'Réglementation, mailles, cartes & carnet de prises', url: 'https://quentinv1.github.io/app-peche/' },
+                  { name: 'Budget Prévisionnel', desc: 'Budget du foyer, provisions & projections', url: 'https://quentinv1.github.io/budget-previsionnel/' },
+                  { name: 'Cave à vin', desc: 'Stock de bouteilles, apogée & dégustations', url: 'https://quentinv1.github.io/cave-a-vin/' },
+                  { name: 'Checklist Valise', desc: 'Bagages, calculateur de poids & règles IATA', url: 'https://quentinv1.github.io/checklist-valise/' },
+                  { name: 'Livre de recettes', desc: 'Recettes, planning semaine & liste de courses', url: 'https://quentinv1.github.io/livre-recettes/' },
+                  { name: 'Suivi Chasse', desc: 'Carnet de sorties, carte & album trophées', url: 'https://quentinv1.github.io/suivi-chasse/' },
+                  { name: 'Travaux Maison', desc: 'Plan 2D/3D, courses, tâches & entretien', url: 'https://quentinv1.github.io/travaux-maison/' },
+                ].map((app) => (
+                  <a
+                    key={app.url}
+                    href={app.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 transition hover:border-slate-300 hover:bg-slate-100"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-800">{app.name}</div>
+                      <div className="truncate text-xs text-slate-500">{app.desc}</div>
+                    </div>
+                    <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
+                      Ouvrir <ExternalLink className="h-3.5 w-3.5" />
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end border-t border-slate-100 px-5 py-3">
+              <Button variant="secondary" onClick={() => setShowOtherApps(false)}>
+                Fermer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

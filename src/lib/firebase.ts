@@ -1,5 +1,5 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { getAuth, type Auth } from 'firebase/auth';
 import {
   initializeFirestore,
@@ -28,10 +28,12 @@ function initFirebaseSafely() {
   }
   try {
     appInstance = initializeApp(FIREBASE_CONFIG);
-    const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY as string | undefined;
+    const appCheckSiteKey =
+      (import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY as string | undefined) ||
+      '6LfRaysuAAAAACpC4hKbGG5Bjpr3Ifr1CyUSlmRe';
     if (appCheckSiteKey && typeof window !== 'undefined') {
       initializeAppCheck(appInstance, {
-        provider: new ReCaptchaV3Provider(appCheckSiteKey),
+        provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
         isTokenAutoRefreshEnabled: true,
       });
     }
