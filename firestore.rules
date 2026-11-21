@@ -2,6 +2,70 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid} (matches Firebase Auth UID)
+    // Fields:
+    //   - uid: string (required, immutable, == uid)
+    //   - email: string (required, valid email, == caller's lowercase email)
+    //   - displayName: string | null (optional, max 120 chars)
+    //   - photoURL: string | null (optional, valid http/https URL, max 1000 chars)
+    //   - updatedAt: number (> 0) | timestamp (required)
+    //
+    // Collection: trips
+    // Document ID: {tripId} (auto-generated)
+    // Fields:
+    //   - name: string (required, 1..120 chars)
+    //   - startDate: string (required, YYYY-MM-DD)
+    //   - endDate: string (required, YYYY-MM-DD, >= startDate)
+    //   - memberEmails: list<string> (required, 1..20 lowercase emails)
+    //   - createdBy: string (required, immutable, == caller's lowercase email on create)
+    //   - createdAt: number (> 0) | timestamp (optional, immutable if set)
+    //   - updatedAt: number (> 0) | timestamp (optional)
+    //
+    // Subcollection: trips/{tripId}/places
+    // Document ID: {placeId}
+    // Fields:
+    //   - name: string (required, 1..200 chars)
+    //   - category: string (required, enum)
+    //   - date: string (YYYY-MM-DD) | null (required key)
+    //   - order: number (required, 0..1000000)
+    //   - time: string (optional, max 16 chars)
+    //   - notes: string (optional, max 5000 chars)
+    //   - address: string (optional, max 500 chars)
+    //   - city: string (optional, max 120 chars)
+    //   - lat: number (optional, -90..90)
+    //   - lng: number (optional, -180..180)
+    //   - googlePlaceId: string (optional, max 200 chars)
+    //   - googleMapsUri: string (optional, valid http/https URL, max 1000 chars)
+    //   - rating: number (optional, 0..5)
+    //   - addedBy: string (optional, max 120 chars)
+    //   - createdAt: number (> 0) | timestamp (optional, immutable if set)
+    //   - updatedAt: number (> 0) | timestamp (optional)
+    //
+    // Subcollection: trips/{tripId}/days
+    // Document ID: {dateId} (YYYY-MM-DD)
+    // Fields:
+    //   - title: string (optional, max 200 chars)
+    //   - city: string (optional, max 120 chars)
+    //   - notes: string (optional, max 5000 chars)
+    //   - updatedAt: number (> 0) | timestamp (optional)
+    //
+    // Subcollection: trips/{tripId}/journal
+    // Document ID: {entryId}
+    // Fields:
+    //   - Shared Carnet de voyage entries (stories, notes, compressed photos)
+    //   - Validated for member access, field count, types, and size bounds
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
     function signedIn() {
       return request.auth != null && request.auth.token.email != null;
     }
@@ -10,20 +74,197 @@ service cloud.firestore {
       return request.auth.token.email.lower();
     }
 
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
     function isMember(tripId) {
-      return signedIn()
-        && myEmail() in get(/databases/$(database)/documents/trips/$(tripId)).data.memberEmails;
+      let trip = get(/databases/$(database)/documents/trips/$(tripId));
+      return signedIn() && trip != null && myEmail() in trip.data.memberEmails;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.size() <= 120 &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string &&
+        url.size() <= 1000 &&
+        (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function isValidYmd(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    function isValidTimestampOrMillis(val) {
+      return (val is number && val > 0) || val is timestamp;
+    }
+
+    function isValidOptionalString(data, field, maxLen) {
+      return !(field in data) ||
+        (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(uid, data) {
+      return hasRequiredFields(['uid', 'email', 'updatedAt']) &&
+        hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'updatedAt']) &&
+        data.uid == uid &&
+        isValidEmail(data.email) &&
+        data.email == myEmail() &&
+        (!('displayName' in data) || data.displayName == null ||
+          (data.displayName is string && data.displayName.size() <= 120)) &&
+        (!('photoURL' in data) || data.photoURL == null || isValidUrl(data.photoURL)) &&
+        isValidTimestampOrMillis(data.updatedAt);
+    }
+
+    function isValidTrip(data) {
+      return hasRequiredFields(['name', 'startDate', 'endDate', 'memberEmails', 'createdBy']) &&
+        hasOnlyAllowedFields(['name', 'startDate', 'endDate', 'memberEmails', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        isValidYmd(data.startDate) &&
+        isValidYmd(data.endDate) &&
+        data.endDate >= data.startDate &&
+        data.memberEmails is list &&
+        data.memberEmails.size() >= 1 &&
+        data.memberEmails.size() <= 20 &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 120 &&
+        (!('createdAt' in data) || isValidTimestampOrMillis(data.createdAt)) &&
+        (!('updatedAt' in data) || isValidTimestampOrMillis(data.updatedAt));
+    }
+
+    function isValidPlace(data) {
+      let validCategories = ['food', 'temple', 'sight', 'nature', 'shopping', 'hotel', 'transport', 'other'];
+      return hasRequiredFields(['name', 'category', 'date', 'order']) &&
+        hasOnlyAllowedFields([
+          'name', 'category', 'date', 'order', 'time', 'notes',
+          'address', 'city', 'lat', 'lng', 'googlePlaceId',
+          'googleMapsUri', 'rating', 'addedBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 200 &&
+        data.category in validCategories &&
+        (data.date == null || isValidYmd(data.date)) &&
+        data.order is number && data.order >= 0 && data.order <= 1000000 &&
+        isValidOptionalString(data, 'time', 16) &&
+        isValidOptionalString(data, 'notes', 5000) &&
+        isValidOptionalString(data, 'address', 500) &&
+        isValidOptionalString(data, 'city', 120) &&
+        (!('lat' in data) || (data.lat is number && data.lat >= -90 && data.lat <= 90)) &&
+        (!('lng' in data) || (data.lng is number && data.lng >= -180 && data.lng <= 180)) &&
+        isValidOptionalString(data, 'googlePlaceId', 200) &&
+        (!('googleMapsUri' in data) || isValidUrl(data.googleMapsUri)) &&
+        (!('rating' in data) || (data.rating is number && data.rating >= 0 && data.rating <= 5)) &&
+        isValidOptionalString(data, 'addedBy', 120) &&
+        (!('createdAt' in data) || isValidTimestampOrMillis(data.createdAt)) &&
+        (!('updatedAt' in data) || isValidTimestampOrMillis(data.updatedAt));
+    }
+
+    function isValidDay(dateId, data) {
+      return isValidYmd(dateId) &&
+        hasOnlyAllowedFields(['title', 'city', 'notes', 'updatedAt']) &&
+        isValidOptionalString(data, 'title', 200) &&
+        isValidOptionalString(data, 'city', 120) &&
+        isValidOptionalString(data, 'notes', 5000) &&
+        (!('updatedAt' in data) || isValidTimestampOrMillis(data.updatedAt));
+    }
+
+    function isValidJournalEntry(data) {
+      return data.keys().size() <= 20 &&
+        isValidOptionalString(data, 'title', 200) &&
+        isValidOptionalString(data, 'content', 20000) &&
+        isValidOptionalString(data, 'text', 20000) &&
+        isValidOptionalString(data, 'notes', 20000) &&
+        (!('date' in data) || data.date == null || isValidYmd(data.date)) &&
+        (!('placeId' in data) || data.placeId == null ||
+          (data.placeId is string && data.placeId.size() <= 128)) &&
+        (!('authorEmail' in data) || isValidEmail(data.authorEmail)) &&
+        (!('authorUid' in data) ||
+          (data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128)) &&
+        (!('authorName' in data) || data.authorName == null ||
+          (data.authorName is string && data.authorName.size() <= 120)) &&
+        (!('photos' in data) || (data.photos is list && data.photos.size() <= 10)) &&
+        (!('createdAt' in data) || isValidTimestampOrMillis(data.createdAt)) &&
+        (!('updatedAt' in data) || isValidTimestampOrMillis(data.updatedAt));
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /users/{uid} {
+      // Any signed-in user can read/query profiles to resolve co-traveler names/avatars
+      allow read: if signedIn();
+      allow create: if isOwner(uid) && isValidUser(uid, request.resource.data);
+      allow update: if isOwner(uid) &&
+        isValidUser(uid, request.resource.data) &&
+        areImmutableFieldsUnchanged(['uid']);
+      allow delete: if false;
     }
 
     match /trips/{tripId} {
-      // Lecture / modification / suppression réservées aux membres du voyage
-      allow read, update, delete: if signedIn() && myEmail() in resource.data.memberEmails;
-      // Création : le créateur doit faire partie des membres
-      allow create: if signedIn() && myEmail() in request.resource.data.memberEmails;
+      allow read: if signedIn() && myEmail() in resource.data.memberEmails;
 
-      match /{sub=**} {
-        allow read, write: if isMember(tripId);
+      allow create: if signedIn() &&
+        myEmail() in request.resource.data.memberEmails &&
+        request.resource.data.createdBy == myEmail() &&
+        isValidTrip(request.resource.data);
+
+      allow update: if signedIn() &&
+        myEmail() in resource.data.memberEmails &&
+        isValidTrip(request.resource.data) &&
+        areImmutableFieldsUnchanged(['createdBy', 'createdAt']);
+
+      allow delete: if signedIn() && myEmail() in resource.data.memberEmails;
+
+      match /places/{placeId} {
+        allow read: if isMember(tripId);
+        allow create: if isMember(tripId) && isValidPlace(request.resource.data);
+        allow update: if isMember(tripId) &&
+          isValidPlace(request.resource.data) &&
+          (!('createdAt' in resource.data) || areImmutableFieldsUnchanged(['createdAt']));
+        allow delete: if isMember(tripId);
       }
+
+      match /days/{dateId} {
+        allow read: if isMember(tripId);
+        allow create, update: if isMember(tripId) && isValidDay(dateId, request.resource.data);
+        allow delete: if isMember(tripId);
+      }
+
+      match /journal/{entryId} {
+        allow read: if isMember(tripId);
+        allow create: if isMember(tripId) &&
+          isValidJournalEntry(request.resource.data) &&
+          (!('authorUid' in request.resource.data) || request.resource.data.authorUid == request.auth.uid) &&
+          (!('authorEmail' in request.resource.data) || request.resource.data.authorEmail == myEmail());
+        allow update: if isMember(tripId) &&
+          isValidJournalEntry(request.resource.data) &&
+          areImmutableFieldsUnchanged(['createdAt', 'authorUid', 'authorEmail']);
+        allow delete: if isMember(tripId);
+      }
+    }
+
+    // Default deny for any other collection
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

@@ -8,6 +8,14 @@ export type Category =
   | 'transport'
   | 'other';
 
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName?: string;
+  photoURL?: string;
+  updatedAt?: number;
+}
+
 export interface Trip {
   id: string;
   name: string;
@@ -16,6 +24,7 @@ export interface Trip {
   memberEmails: string[]; // en minuscules
   createdBy: string;
   createdAt?: number;
+  updatedAt?: number;
 }
 
 /** Informations facultatives d'une journée (id = date YYYY-MM-DD) */
@@ -47,3 +56,23 @@ export interface Place {
 }
 
 export type NewPlace = Omit<Place, 'id' | 'order' | 'createdAt'> & { order?: number };
+
+export type JournalMood = 'amazing' | 'happy' | 'chill' | 'tired' | 'food';
+
+export interface JournalEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  title?: string;
+  content: string;
+  mood?: JournalMood;
+  location?: string;
+  placeId?: string;
+  photos: string[]; // Data URLs compressées WebP/JPEG
+  authorUid?: string;
+  authorEmail?: string;
+  authorName?: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export type NewJournalEntry = Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'>;

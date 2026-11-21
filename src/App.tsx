@@ -6,6 +6,7 @@ import TripList from './pages/TripList';
 import TripLayout from './pages/TripLayout';
 import Planning from './pages/Planning';
 import DayView from './pages/DayView';
+import Journal from './pages/Journal';
 import MapView from './pages/MapView';
 import Ideas from './pages/Ideas';
 import More from './pages/More';
@@ -17,8 +18,8 @@ export default function App() {
 
   if (!isFirebaseConfigured) {
     return (
-      <div className="p-6 max-w-md mx-auto mt-10 space-y-3">
-        <h1 className="text-xl font-bold">⚙️ Configuration manquante</h1>
+      <div className="mx-auto mt-10 max-w-md space-y-3 p-6">
+        <h1 className="text-xl font-bold">Configuration manquante</h1>
         <p>
           Copie <code>.env.example</code> en <code>.env.local</code> et renseigne les clés Firebase et Google Maps
           (voir <code>SETUP.md</code>), puis relance <code>npm run dev</code>.
@@ -36,6 +37,7 @@ export default function App() {
       <Route path="/trip/:tripId" element={<TripLayout />}>
         <Route index element={<Planning />} />
         <Route path="day/:date" element={<DayView />} />
+        <Route path="journal" element={<Journal />} />
         <Route path="map" element={<MapView />} />
         <Route path="ideas" element={<Ideas />} />
         <Route path="more" element={<More />} />

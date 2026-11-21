@@ -1,32 +1,45 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { LogOut, Plane, Plus, Users, WifiOff } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { createTrip, useTrips } from '../lib/db';
 import { daysUntil, formatShort } from '../lib/dates';
+import { useOnlineStatus } from '../lib/offline';
 import { Button, Card, Empty, Field, Sheet, Spinner, inputClass } from '../components/ui';
 
 export default function TripList() {
   const { email, user, logout } = useAuth();
   const { data: trips, loading, error } = useTrips(email);
+  const isOnline = useOnlineStatus();
   const [open, setOpen] = useState(false);
 
   return (
     <div className="pt-safe mx-auto max-w-lg p-4">
       <header className="mb-6 flex items-center justify-between">
         <div>
-          <p className="text-sm text-slate-500">Bonjour {user?.displayName?.split(' ')[0]} 👋</p>
+          <p className="text-sm text-slate-500">Bonjour {user?.displayName?.split(' ')[0] || email?.split('@')[0]}</p>
           <h1 className="text-2xl font-bold">Nos voyages</h1>
         </div>
-        <button onClick={logout} className="text-sm text-slate-500">
-          Déconnexion
-        </button>
+        <div className="flex items-center gap-3">
+          {!isOnline && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+              <WifiOff className="h-3.5 w-3.5" />
+              Hors-ligne
+            </span>
+          )}
+          <button onClick={logout} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+            <LogOut className="h-4 w-4" />
+            Déconnexion
+          </button>
+        </div>
       </header>
 
       {loading && <Spinner />}
       {error && <p className="text-red-600">Erreur : {error.message}</p>}
 
       {!loading && trips.length === 0 && (
-        <Empty icon="✈️" title="Aucun voyage pour l'instant">
+        <Empty icon="" title="Aucun voyage pour l'instant">
+          <Plane className="mx-auto mb-1 h-8 w-8 text-slate-300" />
           <p className="text-sm">Crée le voyage puis ajoute l'e-mail de tes proches pour le partager.</p>
         </Empty>
       )}
@@ -44,8 +57,11 @@ export default function TripList() {
                   </p>
                 </div>
                 <div className="flex justify-between p-4 text-sm text-slate-600">
-                  <span>👥 {t.memberEmails.length} voyageurs</span>
-                  <span>{d > 0 ? `J-${d}` : d === 0 ? "C'est aujourd'hui ! 🎉" : 'Terminé'}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Users className="h-4 w-4 text-slate-400" />
+                    {t.memberEmails.length} voyageur{t.memberEmails.length > 1 ? 's' : ''}
+                  </span>
+                  <span>{d > 0 ? `J-${d}` : d === 0 ? "C'est aujourd'hui !" : 'Terminé'}</span>
                 </div>
               </Card>
             </Link>
@@ -54,7 +70,8 @@ export default function TripList() {
       </div>
 
       <Button className="mt-4 w-full" onClick={() => setOpen(true)}>
-        + Nouveau voyage
+        <Plus className="h-4 w-4" />
+        Nouveau voyage
       </Button>
 
       <NewTripSheet open={open} onClose={() => setOpen(false)} />
@@ -65,7 +82,7 @@ export default function TripList() {
 function NewTripSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { email } = useAuth();
   const navigate = useNavigate();
-  const [name, setName] = useState('Japon 🇯🇵');
+  const [name, setName] = useState('Japon');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [members, setMembers] = useState('');
@@ -105,7 +122,7 @@ function NewTripSheet({ open, onClose }: { open: boolean; onClose: () => void })
             <input type="date" className={inputClass} value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
           </Field>
         </div>
-        <Field label="E-mails Google des voyageurs (séparés par des virgules)">
+        <Field label="E-mails des voyageurs (séparés par des virgules)">
           <textarea
             className={inputClass}
             rows={3}

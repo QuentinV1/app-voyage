@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdvancedMarker, InfoWindow, Map, Pin, useMap } from '@vis.gl/react-google-maps';
+import { ExternalLink, MapPin, Navigation, WifiOff } from 'lucide-react';
 import { useTripCtx } from '../lib/tripContext';
 import { CATEGORIES, IDEA_COLOR, dayColor } from '../lib/categories';
 import { formatShort } from '../lib/dates';
 import { directionsLink, mapsLink } from '../lib/places';
 import type { Place } from '../lib/types';
+import { Card } from '../components/ui';
 
 type Filter = 'all' | 'ideas' | string; // string = date
 
 export default function MapView() {
-  const { places, dates, dayIndex } = useTripCtx();
+  const { places, dates, dayIndex, isOnline } = useTripCtx();
   const [filter, setFilter] = useState<Filter>('all');
   const [selected, setSelected] = useState<Place | null>(null);
 
@@ -23,9 +25,6 @@ export default function MapView() {
       }),
     [located, filter, dayIndex],
   );
-
-  if (!import.meta.env.VITE_GOOGLE_MAPS_API_KEY)
-    return <p className="p-4 text-amber-700">Clé Google Maps manquante (VITE_GOOGLE_MAPS_API_KEY).</p>;
 
   const chip = (value: Filter, label: string, color?: string) => (
     <button
@@ -43,13 +42,82 @@ export default function MapView() {
     </button>
   );
 
+  const filterBar = (
+    <div className="flex gap-2 overflow-x-auto p-3">
+      {chip('all', 'Tous')}
+      {dates.map((d, i) => chip(d, `J${i + 1} · ${formatShort(d)}`, dayColor(i)))}
+      {chip('ideas', 'Idées', IDEA_COLOR)}
+    </div>
+  );
+
+  if (!isOnline || !import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
+    return (
+      <div className="space-y-3 pb-6">
+        {filterBar}
+        <div className="px-4">
+          <Card className="flex items-start gap-3 bg-amber-50/70 p-3.5 text-xs text-amber-900">
+            <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+            <div>
+              <p className="font-semibold">
+                {!isOnline ? 'Carte indisponible hors-ligne' : 'Clé Google Maps manquante'}
+              </p>
+              <p className="mt-0.5 text-amber-800">
+                Voici tes lieux géolocalisés avec leurs coordonnées GPS pour ouvrir un itinéraire dans ton app Maps hors-ligne.
+              </p>
+            </div>
+          </Card>
+        </div>
+
+        <div className="space-y-2 px-4">
+          {visible.map((p) => {
+            const idx = dayIndex(p.date);
+            return (
+              <Card key={p.id} className="space-y-1.5 p-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                      style={{ background: dayColor(idx) }}
+                    >
+                      {idx >= 0 ? `J${idx + 1}` : '·'}
+                    </span>
+                    <p className="truncate font-semibold text-slate-900">{p.name}</p>
+                  </div>
+                  {p.time && <span className="shrink-0 text-xs text-slate-500">{p.time}</span>}
+                </div>
+                {p.address && (
+                  <p className="flex items-center gap-1 text-xs text-slate-500">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                    {p.address}
+                  </p>
+                )}
+                <p className="font-mono text-[11px] text-slate-400">
+                  {p.lat!.toFixed(5)}, {p.lng!.toFixed(5)}
+                </p>
+                <div className="flex gap-4 pt-1 text-xs font-medium">
+                  <a className="inline-flex items-center gap-1 text-brand underline" href={mapsLink(p)} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Maps
+                  </a>
+                  <a className="inline-flex items-center gap-1 text-brand underline" href={directionsLink(p)} target="_blank" rel="noreferrer">
+                    <Navigation className="h-3.5 w-3.5" />
+                    Itinéraire
+                  </a>
+                </div>
+              </Card>
+            );
+          })}
+          {visible.length === 0 && (
+            <p className="py-6 text-center text-sm text-slate-500">Aucun lieu géolocalisé pour ce filtre.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-full min-h-[60vh]">
-      <div className="absolute inset-x-0 top-0 z-10 flex gap-2 overflow-x-auto p-3">
-        {chip('all', 'Tous')}
-        {dates.map((d, i) => chip(d, `J${i + 1} · ${formatShort(d)}`, dayColor(i)))}
-        {chip('ideas', '💡 Idées', IDEA_COLOR)}
-      </div>
+      <div className="absolute inset-x-0 top-0 z-10">{filterBar}</div>
 
       <Map
         mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID'}

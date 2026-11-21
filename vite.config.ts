@@ -9,11 +9,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Voyage Japon',
         short_name: 'Japon',
-        description: 'Planification de notre voyage au Japon',
+        description: 'Planification et carnet de voyage collaboratifs',
         lang: 'fr',
         theme_color: '#be123c',
         background_color: '#fff7f7',
@@ -28,6 +28,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        cleanupOutdatedCaches: true,
         navigateFallbackDenylist: [/^\/__\//],
       },
     }),

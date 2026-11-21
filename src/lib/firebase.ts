@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getAuth } from 'firebase/auth';
 import {
   initializeFirestore,
@@ -18,6 +19,14 @@ const config = {
 export const isFirebaseConfigured = Boolean(config.apiKey && config.projectId);
 
 export const app = initializeApp(isFirebaseConfigured ? config : { apiKey: 'missing', projectId: 'missing', appId: 'missing' });
+
+const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY as string | undefined;
+if (isFirebaseConfigured && appCheckSiteKey && typeof window !== 'undefined') {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(appCheckSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
 
 export const auth = getAuth(app);
 
