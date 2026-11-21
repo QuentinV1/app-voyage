@@ -34,19 +34,19 @@ export default function PlaceItem({ place, index, list, color }: Props) {
         </div>
 
         <button className="min-w-0 flex-1 text-left" onClick={() => setEdit(true)}>
-          <p className="font-semibold leading-tight">
+          <p className="break-words font-semibold leading-tight">
             {CATEGORIES[place.category]?.emoji ?? '📍'} {place.name}
           </p>
           {(place.city || place.address) && (
             <p className="truncate text-xs text-slate-500">{place.city ?? place.address}</p>
           )}
-          {place.notes && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{place.notes}</p>}
+          {place.notes && <p className="mt-1 line-clamp-2 break-words text-sm text-slate-600">{place.notes}</p>}
           {place.rating && <p className="mt-0.5 text-xs text-amber-600">★ {place.rating.toFixed(1)}</p>}
         </button>
 
-        <div className="flex flex-col justify-between">
+        <div className="flex shrink-0 flex-col justify-between">
           <button
-            className="px-2 text-slate-400 disabled:opacity-20"
+            className="px-2 py-1 text-slate-400 disabled:opacity-20"
             disabled={!prev}
             onClick={() => prev && swapOrder(trip.id, place, prev)}
             aria-label="Monter"
@@ -54,7 +54,7 @@ export default function PlaceItem({ place, index, list, color }: Props) {
             ▲
           </button>
           <button
-            className="px-2 text-slate-400 disabled:opacity-20"
+            className="px-2 py-1 text-slate-400 disabled:opacity-20"
             disabled={!next}
             onClick={() => next && swapOrder(trip.id, place, next)}
             aria-label="Descendre"
@@ -118,7 +118,7 @@ function EditPlaceSheet({ open, onClose, place }: { open: boolean; onClose: () =
             ))}
           </select>
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Heure">
             <input type="time" className={inputClass} value={time} onChange={(e) => setTime(e.target.value)} />
           </Field>
@@ -136,7 +136,7 @@ function EditPlaceSheet({ open, onClose, place }: { open: boolean; onClose: () =
           <textarea className={inputClass} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
         {place.addedBy && <p className="text-xs text-slate-400">Ajouté par {place.addedBy}</p>}
-        <div className="flex gap-2">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row">
           <Button variant="danger" onClick={remove}>
             Supprimer
           </Button>

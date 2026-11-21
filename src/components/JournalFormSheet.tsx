@@ -132,7 +132,7 @@ export function JournalFormSheet({
   return (
     <Sheet open={open} onClose={onClose} title={entry ? 'Modifier le souvenir' : 'Nouveau souvenir'}>
       <form onSubmit={submit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Jour / Date">
             {dates.length > 0 ? (
               <select className={inputClass} value={date} onChange={(e) => setDate(e.target.value)}>
@@ -217,7 +217,7 @@ export function JournalFormSheet({
         </Field>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-sm font-medium text-slate-600">
               Photos ({photos.length}/{MAX_PHOTOS_PER_ENTRY})
             </span>
@@ -238,7 +238,7 @@ export function JournalFormSheet({
           </div>
 
           {photos.length > 0 ? (
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {photos.map((src, idx) => (
                 <div key={idx} className="group relative aspect-square overflow-hidden rounded-xl bg-slate-100">
                   <img src={src} alt={`Souvenir ${idx + 1}`} className="h-full w-full object-cover" />

@@ -47,7 +47,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 export const inputClass =
-  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-brand focus:ring-2 focus:ring-rose-100';
+  'w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-brand focus:ring-2 focus:ring-rose-100';
 
 /** Panneau modal qui monte du bas de l'écran (style mobile) */
 export function Sheet({
@@ -72,18 +72,18 @@ export function Sheet({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={onClose}>
       <div
-        className="pb-safe flex max-h-[92vh] w-full max-w-lg flex-col rounded-t-3xl bg-white sm:rounded-3xl"
+        className="pb-safe flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="rounded-full p-2 text-slate-500 active:bg-slate-100" aria-label="Fermer">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-3">
+          <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">{title}</h2>
+          <button onClick={onClose} className="shrink-0 rounded-full p-2 text-slate-500 active:bg-slate-100" aria-label="Fermer">
             ✕
           </button>
         </div>
-        <div className="overflow-y-auto p-5">{children}</div>
+        <div className="overflow-y-auto p-4 sm:p-5">{children}</div>
       </div>
     </div>
   );

@@ -16,14 +16,14 @@ export default function TripList() {
 
   return (
     <div className="pt-safe mx-auto max-w-lg p-4">
-      <header className="mb-6 flex items-center justify-between gap-2">
-        <div>
-          <p className="text-sm text-slate-500">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm text-slate-500">
             {user ? `Bonjour ${user.displayName?.split(' ')[0] || email?.split('@')[0]}` : 'Mode local hors-compte'}
           </p>
           <h1 className="text-2xl font-bold">Nos voyages</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {!isOnline && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
               <WifiOff className="h-3.5 w-3.5" />
@@ -115,7 +115,7 @@ function NewTripSheet({ open, onClose }: { open: boolean; onClose: () => void })
         <Field label="Nom">
           <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Départ">
             <input type="date" className={inputClass} value={start} onChange={(e) => setStart(e.target.value)} />
           </Field>

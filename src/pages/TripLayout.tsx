@@ -73,18 +73,18 @@ export default function TripLayout() {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="pt-safe sticky top-0 z-20 bg-brand text-white shadow">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link to="/" className="rounded-lg p-1 active:bg-white/15" aria-label="Mes voyages">
+    <div className="flex h-dvh flex-col overflow-x-clip">
+      <header className="pt-safe sticky top-0 z-20 shrink-0 bg-brand text-white shadow">
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <Link to="/" className="shrink-0 rounded-lg p-1 active:bg-white/15" aria-label="Mes voyages">
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <h1 className="truncate text-lg font-semibold">{activeTrip.name}</h1>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {!isOnline && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[11px] font-medium text-white">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[11px] font-medium text-white sm:px-2.5">
                 <WifiOff className="h-3 w-3" />
                 Hors-ligne
               </span>
@@ -100,11 +100,11 @@ export default function TripLayout() {
         )}
       </header>
 
-      <main className="mx-auto w-full max-w-lg flex-1 overflow-y-auto">
+      <main className="mx-auto w-full max-w-lg min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
         <Outlet context={ctx} />
       </main>
 
-      <nav className="pb-safe sticky bottom-0 z-20 border-t border-slate-200 bg-white">
+      <nav className="pb-safe sticky bottom-0 z-20 shrink-0 border-t border-slate-200 bg-white">
         <div className="mx-auto grid max-w-lg grid-cols-5">
           {TABS.map((t) => {
             const Icon = t.icon;
@@ -114,7 +114,7 @@ export default function TripLayout() {
                 to={t.to}
                 end={t.end}
                 className={({ isActive }) =>
-                  `flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActive ? 'font-semibold text-brand' : 'text-slate-500'}`
+                  `flex min-h-[44px] flex-col items-center justify-center gap-0.5 py-2 text-[11px] ${isActive ? 'font-semibold text-brand' : 'text-slate-500'}`
                 }
               >
                 <Icon className="h-5 w-5" />

@@ -40,14 +40,15 @@ export default function Journal() {
 
   return (
     <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
           <h2 className="text-lg font-bold text-slate-900">Carnet de voyage</h2>
           <p className="text-xs text-slate-500">
             {journal.length} souvenir{journal.length > 1 ? 's' : ''} partagé{journal.length > 1 ? 's' : ''}
           </p>
         </div>
         <Button
+          className="shrink-0"
           onClick={() => {
             setEditing(null);
             setOpenForm(true);
@@ -127,11 +128,11 @@ export default function Journal() {
                         </span>
                       )}
                     </div>
-                    {j.title && <h3 className="mt-1.5 font-semibold text-slate-900">{j.title}</h3>}
+                    {j.title && <h3 className="mt-1.5 break-words font-semibold text-slate-900">{j.title}</h3>}
                     {j.location && (
-                      <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+                      <p className="mt-0.5 flex items-center gap-1 break-words text-xs text-slate-500">
                         <MapPin className="h-3.5 w-3.5 shrink-0 text-brand" />
-                        {j.location}
+                        <span className="min-w-0 break-words">{j.location}</span>
                       </p>
                     )}
                   </div>
@@ -157,7 +158,7 @@ export default function Journal() {
                   </div>
                 </div>
 
-                <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">{j.content}</p>
+                <p className="whitespace-pre-line break-words text-sm leading-relaxed text-slate-700">{j.content}</p>
 
                 {j.photos?.length > 0 && (
                   <div className={`grid gap-2 ${j.photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>

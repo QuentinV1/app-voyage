@@ -90,12 +90,12 @@ export default function More() {
   return (
     <div className="space-y-4 p-4">
       <Card className="space-y-3 p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 font-semibold">
-            <Users className="h-4 w-4 text-brand" />
+            <Users className="h-4 w-4 shrink-0 text-brand" />
             Voyageurs & Partage ({trip.memberEmails.length})
           </h2>
-          <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={shareTripLink}>
+          <Button variant="secondary" className="shrink-0 px-3 py-1.5 text-xs" onClick={shareTripLink}>
             {shareCopied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Share2 className="h-3.5 w-3.5" />}
             {shareCopied ? 'Lien copié' : 'Partager'}
           </Button>
@@ -128,7 +128,7 @@ export default function More() {
           })}
         </ul>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             className={inputClass}
             type="email"
@@ -136,7 +136,9 @@ export default function More() {
             value={newMember}
             onChange={(e) => setNewMember(e.target.value)}
           />
-          <Button onClick={addMember}>Ajouter</Button>
+          <Button className="shrink-0" onClick={addMember}>
+            Ajouter
+          </Button>
         </div>
         <p className="text-xs text-slate-500">
           Chaque membre ajouté voit et modifie le planning, les idées et le carnet en temps réel avec son compte (Google ou e-mail).
@@ -144,13 +146,13 @@ export default function More() {
       </Card>
 
       <Card className="space-y-3 p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 font-semibold">
-            {isOnline ? <Wifi className="h-4 w-4 text-emerald-600" /> : <WifiOff className="h-4 w-4 text-amber-600" />}
+            {isOnline ? <Wifi className="h-4 w-4 shrink-0 text-emerald-600" /> : <WifiOff className="h-4 w-4 shrink-0 text-amber-600" />}
             Mode hors-ligne terrain
           </h2>
           <span
-            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
               isOnline ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
             }`}
           >
@@ -160,7 +162,7 @@ export default function More() {
         <p className="text-xs text-slate-500">
           Le cache local Firestore et le snapshot terrain conservent ton planning, tes adresses, tes coordonnées GPS et ton carnet sans connexion.
         </p>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <span className="text-xs text-slate-500">
             {offlineSavedAt
               ? `Dernière sauvegarde : ${new Date(offlineSavedAt).toLocaleString('fr-FR')}`
@@ -178,7 +180,7 @@ export default function More() {
           <Calendar className="h-4 w-4 text-brand" />
           Dates du voyage
         </h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Départ">
             <input type="date" className={inputClass} value={start} onChange={(e) => setStart(e.target.value)} />
           </Field>
@@ -220,8 +222,10 @@ export default function More() {
           className="flex w-full items-center gap-3 p-4 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
           onClick={openAuthModal}
         >
-          <Cloud className="h-4 w-4 text-brand" />
-          {user ? `Compte Cloud (${email})` : 'Se connecter au Cloud & synchroniser'}
+          <Cloud className="h-4 w-4 shrink-0 text-brand" />
+          <span className="min-w-0 flex-1 truncate">
+            {user ? `Compte Cloud (${email})` : 'Se connecter au Cloud & synchroniser'}
+          </span>
         </button>
         <button
           className="flex w-full items-center gap-3 p-4 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
@@ -258,11 +262,11 @@ export default function More() {
 
       {showOtherApps && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 backdrop-blur-xs sm:p-4"
           onClick={() => setShowOtherApps(false)}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">

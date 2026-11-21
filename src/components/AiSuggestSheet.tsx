@@ -104,18 +104,18 @@ export default function AiSuggestSheet({ open, onClose, date, defaultCity, exist
         <div className="space-y-3">
           {results.map((r, i) => (
             <label key={i} className="flex gap-3 rounded-xl border border-slate-100 p-3">
-              <input type="checkbox" className="mt-1 h-5 w-5 accent-rose-600" checked={selected.has(i)} onChange={() => toggle(i)} />
-              <div>
-                <p className="font-medium">
+              <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-rose-600" checked={selected.has(i)} onChange={() => toggle(i)} />
+              <div className="min-w-0 flex-1">
+                <p className="break-words font-medium">
                   {r.time && <span className="text-slate-500">{r.time} · </span>}
                   {CATEGORIES[r.category]?.emoji} {r.name}
                 </p>
-                {r.notes && <p className="text-sm text-slate-600">{r.notes}</p>}
+                {r.notes && <p className="break-words text-sm text-slate-600">{r.notes}</p>}
               </div>
             </label>
           ))}
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <Button variant="secondary" onClick={() => setResults([])}>
               Recommencer
             </Button>

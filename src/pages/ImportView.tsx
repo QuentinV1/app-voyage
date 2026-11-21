@@ -110,7 +110,7 @@ export default function ImportView() {
           </Card>
         )}
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <div className="flex gap-2">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row">
           <Button variant="secondary" onClick={() => setResult(null)}>
             Retour
           </Button>

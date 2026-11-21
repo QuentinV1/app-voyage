@@ -86,9 +86,9 @@ export default function MapView() {
                   {p.time && <span className="shrink-0 text-xs text-slate-500">{p.time}</span>}
                 </div>
                 {p.address && (
-                  <p className="flex items-center gap-1 text-xs text-slate-500">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" />
-                    {p.address}
+                  <p className="flex items-start gap-1 text-xs text-slate-500">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span className="min-w-0 break-words">{p.address}</span>
                   </p>
                 )}
                 <p className="font-mono text-[11px] text-slate-400">
@@ -116,7 +116,7 @@ export default function MapView() {
   }
 
   return (
-    <div className="relative h-full min-h-[60vh]">
+    <div className="relative h-full min-h-[60dvh]">
       <div className="absolute inset-x-0 top-0 z-10">{filterBar}</div>
 
       <Map
@@ -174,7 +174,7 @@ export default function MapView() {
       </Map>
 
       {located.length < places.length && (
-        <p className="absolute inset-x-0 bottom-2 mx-auto w-fit rounded-full bg-white/90 px-3 py-1 text-xs text-slate-500 shadow">
+        <p className="pointer-events-none absolute inset-x-3 bottom-2 mx-auto w-fit max-w-[calc(100%-1.5rem)] truncate rounded-full bg-white/90 px-3 py-1 text-center text-xs text-slate-500 shadow">
           {places.length - located.length} lieu(x) sans coordonnées
         </p>
       )}

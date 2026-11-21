@@ -46,7 +46,7 @@ export default function DayView() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input
           key={`t-${date}`}
           className={inputClass}
@@ -75,12 +75,12 @@ export default function DayView() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button onClick={() => setAdding(true)}>
-          <Plus className="h-4 w-4" />
+        <Button className="px-3 text-sm sm:px-4 sm:text-base" onClick={() => setAdding(true)}>
+          <Plus className="h-4 w-4 shrink-0" />
           Ajouter un lieu
         </Button>
-        <Button variant="secondary" onClick={() => setAi(true)}>
-          <Sparkles className="h-4 w-4 text-brand" />
+        <Button variant="secondary" className="px-3 text-sm sm:px-4 sm:text-base" onClick={() => setAi(true)}>
+          <Sparkles className="h-4 w-4 shrink-0 text-brand" />
           Idées IA
         </Button>
       </div>
@@ -95,12 +95,12 @@ export default function DayView() {
       />
 
       <Card className="space-y-3 p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="flex items-center gap-2 font-semibold text-slate-800">
-            <BookOpen className="h-4 w-4 text-brand" />
-            Carnet du jour ({dayMemories.length})
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex min-w-0 items-center gap-2 font-semibold text-slate-800">
+            <BookOpen className="h-4 w-4 shrink-0 text-brand" />
+            <span className="truncate">Carnet du jour ({dayMemories.length})</span>
           </h3>
-          <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => setAddMemory(true)}>
+          <Button variant="secondary" className="shrink-0 px-3 py-1.5 text-xs" onClick={() => setAddMemory(true)}>
             <Plus className="h-3.5 w-3.5" />
             Souvenir
           </Button>
