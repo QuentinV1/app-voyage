@@ -11,6 +11,7 @@ import More from './pages/More';
 import ImportView from './pages/ImportView';
 import Login from './pages/Login';
 import { CloudAuthModal } from './components/CloudAuthModal';
+import { FeedbackButtonAndModal } from './components/FeedbackModal';
 import { Button, Card } from './components/ui';
 import { useAuth } from './lib/auth';
 import { isFirebaseConfigured } from './lib/firebase';
@@ -119,6 +120,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <CloudAuthModal />
+      <FeedbackButtonAndModal />
     </>
   );
 }

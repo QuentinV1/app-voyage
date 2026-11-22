@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
+import { Sparkles } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { suggestForDay, type AiPlace } from '../lib/ai';
 import { addPlacesBatch } from '../lib/db';
@@ -50,7 +51,7 @@ export default function AiSuggestSheet({ open, onClose, date, defaultCity, exist
       const out: NewPlace[] = [];
       for (const r of chosen) {
         const gp = lib ? await searchPlace(lib, `${r.name} ${r.city ?? city}`) : null;
-        const base = { date, addedBy: `✨ IA (${email ?? ''})`, time: r.time, notes: r.notes };
+        const base = { date, addedBy: `IA (${email ?? ''})`, time: r.time, notes: r.notes };
         out.push(
           gp
             ? { ...fromGooglePlace(gp, base), category: r.category }
@@ -76,9 +77,9 @@ export default function AiSuggestSheet({ open, onClose, date, defaultCity, exist
     });
 
   return (
-    <Sheet open={open} onClose={onClose} title="✨ Idées pour la journée">
+    <Sheet open={open} onClose={onClose} title="Suggestions IA pour la journée">
       {busy ? (
-        <div className="py-8">
+        <div className="py-10">
           <Spinner label={busy} />
         </div>
       ) : results.length === 0 ? (
@@ -97,23 +98,37 @@ export default function AiSuggestSheet({ open, onClose, date, defaultCity, exist
           </Field>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button className="w-full" onClick={generate}>
+            <Sparkles className="h-4 w-4" />
             Générer avec Gemini
           </Button>
         </div>
       ) : (
         <div className="space-y-3">
-          {results.map((r, i) => (
-            <label key={i} className="flex gap-3 rounded-xl border border-slate-100 p-3">
-              <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-rose-600" checked={selected.has(i)} onChange={() => toggle(i)} />
-              <div className="min-w-0 flex-1">
-                <p className="break-words font-medium">
-                  {r.time && <span className="text-slate-500">{r.time} · </span>}
-                  {CATEGORIES[r.category]?.emoji} {r.name}
-                </p>
-                {r.notes && <p className="break-words text-sm text-slate-600">{r.notes}</p>}
-              </div>
-            </label>
-          ))}
+          {results.map((r, i) => {
+            const cat = CATEGORIES[r.category] ?? CATEGORIES.other;
+            const Icon = cat.icon;
+            return (
+              <label key={i} className="flex cursor-pointer gap-3 rounded-xl border border-slate-200 p-3 transition hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 shrink-0 accent-rose-600"
+                  checked={selected.has(i)}
+                  onChange={() => toggle(i)}
+                />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${cat.badgeClass}`}>
+                      <Icon className="h-3 w-3" />
+                      {cat.shortLabel}
+                    </span>
+                    {r.time && <span className="tabular-nums text-xs font-medium text-slate-500">{r.time}</span>}
+                  </div>
+                  <p className="break-words text-sm font-semibold text-slate-900">{r.name}</p>
+                  {r.notes && <p className="break-words text-xs text-slate-600">{r.notes}</p>}
+                </div>
+              </label>
+            );
+          })}
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <Button variant="secondary" onClick={() => setResults([])}>

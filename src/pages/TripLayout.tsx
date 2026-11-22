@@ -1,23 +1,16 @@
 import { useEffect, useMemo } from 'react';
-import { Link, NavLink, Outlet, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, CalendarDays, Lightbulb, MapPin, Settings, WifiOff } from 'lucide-react';
+import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
+import { ArrowLeft, BookOpen, CalendarDays, Compass, Lightbulb, MapPin, Settings, WifiOff } from 'lucide-react';
 import { CloudAuthHeaderButton } from '../components/CloudAuthModal';
 import { useDays, useJournal, usePlaces, useTrip, useUserProfiles } from '../lib/db';
-import { listDates } from '../lib/dates';
+import { formatShort, listDates } from '../lib/dates';
 import { loadTripSnapshot, saveTripSnapshot, useOnlineStatus } from '../lib/offline';
 import type { TripCtx } from '../lib/tripContext';
-import { Spinner } from '../components/ui';
-
-const TABS = [
-  { to: '', icon: CalendarDays, label: 'Planning', end: true },
-  { to: 'journal', icon: BookOpen, label: 'Carnet' },
-  { to: 'map', icon: MapPin, label: 'Carte' },
-  { to: 'ideas', icon: Lightbulb, label: 'Idées' },
-  { to: 'more', icon: Settings, label: 'Plus' },
-];
+import { Button, Card, Spinner } from '../components/ui';
 
 export default function TripLayout() {
   const { tripId } = useParams();
+  const location = useLocation();
   const isOnline = useOnlineStatus();
   const trip = useTrip(tripId);
   const places = usePlaces(tripId);
@@ -48,18 +41,36 @@ export default function TripLayout() {
     [activeTrip],
   );
 
-  if (trip.loading && !activeTrip) return <Spinner full />;
+  if (trip.loading && !activeTrip) return <Spinner full label="Chargement du voyage…" />;
   if (!activeTrip)
     return (
-      <div className="p-6 text-center">
-        <p className="mb-4">Voyage introuvable ou accès refusé.</p>
-        <Link to="/" className="text-brand underline">
-          Retour
-        </Link>
+      <div className="flex min-h-full items-center justify-center bg-slate-50 p-6">
+        <Card className="w-full max-w-sm space-y-4 p-6 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-brand">
+            <Compass className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-lg font-bold text-slate-900">Voyage introuvable</h1>
+            <p className="text-sm text-slate-500">Ce voyage n&apos;existe plus ou ton compte n&apos;y a pas accès.</p>
+          </div>
+          <Link to="/" className="block">
+            <Button className="w-full">Retour à mes voyages</Button>
+          </Link>
+        </Card>
       </div>
     );
 
   const hasPendingWrites = Boolean(trip.hasPendingWrites || places.hasPendingWrites || journal.hasPendingWrites);
+  const ideasCount = activePlaces.filter((p) => !p.date || !dates.includes(p.date)).length;
+  const isMapRoute = location.pathname.endsWith('/map');
+
+  const tabs = [
+    { to: '', icon: CalendarDays, label: 'Planning', end: true, count: dates.length },
+    { to: 'journal', icon: BookOpen, label: 'Carnet', count: activeJournal.length },
+    { to: 'map', icon: MapPin, label: 'Carte', count: activePlaces.filter((p) => p.lat != null && p.lng != null).length },
+    { to: 'ideas', icon: Lightbulb, label: 'Idées', count: ideasCount },
+    { to: 'more', icon: Settings, label: 'Plus' },
+  ];
 
   const ctx: TripCtx = {
     trip: activeTrip,
@@ -73,40 +84,105 @@ export default function TripLayout() {
   };
 
   return (
-    <div className="flex h-dvh flex-col overflow-x-clip">
-      <header className="pt-safe sticky top-0 z-20 shrink-0 bg-brand text-white shadow">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-4">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <Link to="/" className="shrink-0 rounded-lg p-1 active:bg-white/15" aria-label="Mes voyages">
-              <ArrowLeft className="h-5 w-5" />
+    <div className="flex h-dvh flex-col overflow-x-clip bg-slate-50">
+      {/* Header sticky moderne avec nav desktop intégrée */}
+      <header className="pt-safe sticky top-0 z-20 shrink-0 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-2.5 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+            <Link
+              to="/"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Mes voyages"
+              title="Retour à mes voyages"
+            >
+              <ArrowLeft className="h-4 w-4" />
             </Link>
-            <h1 className="truncate text-lg font-semibold">{activeTrip.name}</h1>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                  {activeTrip.name}
+                </h1>
+                <span className="hidden shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 sm:inline">
+                  {dates.length} j
+                </span>
+              </div>
+              <p className="truncate text-[11px] font-medium text-slate-500">
+                {formatShort(activeTrip.startDate)} → {formatShort(activeTrip.endDate)} · {activeTrip.memberEmails.length} voyageur{activeTrip.memberEmails.length > 1 ? 's' : ''}
+              </p>
+            </div>
           </div>
+
+          {/* Navigation Desktop */}
+          <nav aria-label="Navigation du voyage" className="hidden items-center gap-1 md:flex">
+            {tabs.map((t) => {
+              const Icon = t.icon;
+              return (
+                <NavLink
+                  key={t.to}
+                  to={t.to}
+                  end={t.end}
+                  className={({ isActive }) =>
+                    `inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                      isActive
+                        ? 'bg-brand text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{t.label}</span>
+                      {typeof t.count === 'number' && t.count > 0 && (
+                        <span
+                          className={`tabular-nums rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                            isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {t.count}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
+          </nav>
+
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {!isOnline && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[11px] font-medium text-white sm:px-2.5">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
                 <WifiOff className="h-3 w-3" />
-                Hors-ligne
+                <span className="hidden sm:inline">Hors-ligne</span>
               </span>
             )}
-            <CloudAuthHeaderButton variant="dark" />
+            <CloudAuthHeaderButton variant="light" />
           </div>
         </div>
+
         {!isOnline && (
-          <div className="bg-amber-50 px-4 py-1.5 text-center text-xs text-amber-800">
+          <div className="border-t border-amber-200/70 bg-amber-50 px-4 py-1.5 text-center text-xs font-medium text-amber-800">
             Mode hors-ligne terrain actif — les modifications seront synchronisées au retour du réseau
             {hasPendingWrites ? ' (en attente)' : ''}.
           </div>
         )}
       </header>
 
-      <main className="mx-auto w-full max-w-lg min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+      <main
+        className={`w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto ${
+          isMapRoute ? '' : 'mx-auto max-w-7xl'
+        }`}
+      >
         <Outlet context={ctx} />
       </main>
 
-      <nav className="pb-safe sticky bottom-0 z-20 shrink-0 border-t border-slate-200 bg-white">
+      {/* Bottom nav mobile uniquement */}
+      <nav
+        aria-label="Navigation mobile"
+        className="pb-safe sticky bottom-0 z-20 shrink-0 border-t border-slate-200/90 bg-white/95 backdrop-blur-md md:hidden"
+      >
         <div className="mx-auto grid max-w-lg grid-cols-5">
-          {TABS.map((t) => {
+          {tabs.map((t) => {
             const Icon = t.icon;
             return (
               <NavLink
@@ -114,11 +190,25 @@ export default function TripLayout() {
                 to={t.to}
                 end={t.end}
                 className={({ isActive }) =>
-                  `flex min-h-[44px] flex-col items-center justify-center gap-0.5 py-2 text-[11px] ${isActive ? 'font-semibold text-brand' : 'text-slate-500'}`
+                  `relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] transition ${
+                    isActive ? 'font-bold text-brand' : 'font-medium text-slate-500'
+                  }`
                 }
               >
-                <Icon className="h-5 w-5" />
-                {t.label}
+                {({ isActive }) => (
+                  <>
+                    {isActive && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-brand" />}
+                    <div className="relative">
+                      <Icon className="h-5 w-5" />
+                      {typeof t.count === 'number' && t.count > 0 && t.to === 'ideas' && (
+                        <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-bold text-white">
+                          {t.count}
+                        </span>
+                      )}
+                    </div>
+                    <span>{t.label}</span>
+                  </>
+                )}
               </NavLink>
             );
           })}

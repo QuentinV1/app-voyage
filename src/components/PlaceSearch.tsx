@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
+import { MapPin, Search } from 'lucide-react';
 import { PLACE_FIELDS } from '../lib/places';
 import { inputClass } from './ui';
 
@@ -45,7 +46,7 @@ export default function PlaceSearch({ onPick, autoFocus, locationBias }: Props) 
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
       }
-    }, 300); // debounce => moins d'appels facturés
+    }, 300);
     return () => {
       cancelled = true;
       clearTimeout(t);
@@ -57,7 +58,7 @@ export default function PlaceSearch({ onPick, autoFocus, locationBias }: Props) 
     try {
       const place = pred.toPlace();
       await place.fetchFields({ fields: PLACE_FIELDS });
-      token.current = null; // fin de session de facturation
+      token.current = null;
       setInput('');
       setSuggestions([]);
       onPick(place);
@@ -72,22 +73,32 @@ export default function PlaceSearch({ onPick, autoFocus, locationBias }: Props) 
     return <p className="text-sm text-amber-700">Clé Google Maps manquante (VITE_GOOGLE_MAPS_API_KEY).</p>;
 
   return (
-    <div className="space-y-2">
-      <input
-        className={inputClass}
-        placeholder="🔎 Restaurant, monument, quartier…"
-        value={input}
-        autoFocus={autoFocus}
-        onChange={(e) => setInput(e.target.value)}
-      />
-      {loading && <p className="text-sm text-slate-500">Chargement du lieu…</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+    <div className="space-y-2.5">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          className={`${inputClass} pl-10`}
+          placeholder="Restaurant, monument, quartier…"
+          value={input}
+          autoFocus={autoFocus}
+          onChange={(e) => setInput(e.target.value)}
+        />
+      </div>
+      {loading && <p className="text-xs font-medium text-slate-500">Chargement du lieu…</p>}
+      {error && <p className="text-xs font-medium text-red-600">{error}</p>}
       <ul className="divide-y divide-slate-100">
         {suggestions.map((s) => (
           <li key={s.placeId}>
-            <button className="w-full py-3 text-left active:bg-slate-50" onClick={() => pick(s)}>
-              <p className="font-medium">{s.mainText?.toString() ?? s.text.toString()}</p>
-              <p className="text-sm text-slate-500">{s.secondaryText?.toString()}</p>
+            <button
+              type="button"
+              className="flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-3 text-left transition hover:bg-slate-50"
+              onClick={() => pick(s)}
+            >
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900">{s.mainText?.toString() ?? s.text.toString()}</p>
+                <p className="text-xs text-slate-500">{s.secondaryText?.toString()}</p>
+              </div>
             </button>
           </li>
         ))}

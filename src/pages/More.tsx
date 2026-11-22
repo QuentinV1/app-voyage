@@ -121,8 +121,17 @@ export default function More() {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <Card className="space-y-3 p-4">
+    <div className="space-y-6 p-4 sm:p-6">
+      <div>
+        <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Paramètres & Partage</h2>
+        <p className="text-xs text-slate-500 sm:text-sm">
+          Gère les voyageurs, les dates, la sauvegarde hors-ligne et les imports/exports.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="space-y-5">
+      <Card className="space-y-3 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 font-semibold">
             <Users className="h-4 w-4 shrink-0 text-brand" />
@@ -230,7 +239,7 @@ export default function More() {
         </div>
       </Card>
 
-      <Card className="space-y-3 p-4">
+      <Card className="space-y-3 p-5">
         <h2 className="flex items-center gap-2 font-semibold">
           <Calendar className="h-4 w-4 text-brand" />
           Dates du voyage
@@ -253,8 +262,10 @@ export default function More() {
           </Button>
         )}
       </Card>
+        </div>
 
-      <Card className="divide-y divide-slate-100">
+        <div className="space-y-5">
+      <Card className="divide-y divide-slate-100 overflow-hidden">
         <Link to="../import" className="flex items-center gap-3 p-4 text-sm font-medium text-slate-800 hover:bg-slate-50">
           <Download className="h-4 w-4 text-brand" />
           Importer un planning (Wanderlog, PDF, texte…)
@@ -309,7 +320,7 @@ export default function More() {
         )}
       </Card>
 
-      <Card className="space-y-1.5 p-4 text-sm text-slate-600">
+      <Card className="space-y-1.5 p-5 text-sm text-slate-600">
         <h2 className="flex items-center gap-2 font-semibold text-slate-800">
           <Smartphone className="h-4 w-4 text-brand" />
           Installer l'app sur le téléphone
@@ -321,6 +332,8 @@ export default function More() {
           <b>Android</b> : ouvrir le lien dans Chrome → menu ⋮ → « Installer l'application ».
         </p>
       </Card>
+        </div>
+      </div>
 
       {showOtherApps && (
         <div
