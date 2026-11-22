@@ -1,10 +1,9 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   getRedirectResult,
   onAuthStateChanged,
-  sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
@@ -12,8 +11,13 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth';
-import { auth, isFirebaseConfigured } from './firebase';
+import { auth, db, isFirebaseConfigured } from './firebase';
 import { upsertUserProfile } from './db';
+import {
+  clearAuthAccessCache,
+  resolveUserAccessWithCache,
+  type AccessStatus,
+} from './accessControl';
 import {
   activerSyncCloud,
   arreterListenersFirestore,
@@ -24,10 +28,14 @@ import {
   type CloudState,
 } from './store';
 
+const APP_ID = 'app-voyage';
+
 interface AuthState {
   user: User | null;
   email: string | null;
   loading: boolean;
+  accessStatus: AccessStatus | null;
+  offlineUnverified: boolean;
   cloud: CloudState;
   modalOpen: boolean;
   openAuthModal: () => void;
@@ -35,8 +43,7 @@ interface AuthState {
   login: () => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   registerWithEmail: (email: string, password: string, displayName?: string) => Promise<void>;
-  resendVerificationEmail: () => Promise<boolean>;
-  reloadAndVerifyUser: () => Promise<boolean>;
+  recheckAccess: () => Promise<void>;
   forceSyncNow: () => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -46,9 +53,10 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(isFirebaseConfigured);
+  const [accessStatus, setAccessStatus] = useState<AccessStatus | null>(null);
+  const [offlineUnverified, setOfflineUnverified] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [cloud, setCloud] = useState<CloudState>(() => getCloudSnapshot());
-  const [, setUserVersion] = useState(0);
 
   useEffect(() => {
     return subscribeStore(() => {
@@ -56,30 +64,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const verifyAndSyncUser = useCallback(async (u: User) => {
+    const result = await resolveUserAccessWithCache(db, APP_ID, u.uid, u.email);
+    setAccessStatus(result.access);
+    setOfflineUnverified(result.offlineUnverified);
+    if (result.access.hasAppAccess) {
+      upsertUserProfile(u).catch(() => {
+        // Silencieux si hors-ligne au démarrage
+      });
+      activerSyncCloud(u);
+    } else {
+      arreterListenersFirestore();
+      reinitialiserEtatCloud();
+    }
+  }, []);
+
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
       setLoading(false);
       return;
     }
+    let active = true;
     getRedirectResult(auth).catch((e) => console.warn('Redirect result', e));
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (!active) return;
       setUser(u);
-      setLoading(false);
       if (u) {
-        upsertUserProfile(u).catch(() => {
-          // Silencieux si hors-ligne au démarrage
-        });
-        activerSyncCloud(u);
+        setLoading(true);
+        try {
+          await verifyAndSyncUser(u);
+        } finally {
+          if (active) setLoading(false);
+        }
       } else {
+        clearAuthAccessCache(APP_ID);
+        setAccessStatus(null);
+        setOfflineUnverified(false);
         arreterListenersFirestore();
         reinitialiserEtatCloud();
+        setLoading(false);
       }
     });
     return () => {
+      active = false;
       unsub();
       arreterListenersFirestore();
     };
-  }, []);
+  }, [verifyAndSyncUser]);
+
+  useEffect(() => {
+    if (!user) return;
+    const handleOnline = () => {
+      verifyAndSyncUser(user).catch(() => {});
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [user, verifyAndSyncUser]);
+
+  const recheckAccess = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      await verifyAndSyncUser(user);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, verifyAndSyncUser]);
 
   const login = async () => {
     if (!isFirebaseConfigured || !auth) throw new Error('Firebase indisponible hors-ligne.');
@@ -108,30 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (displayName && displayName.trim()) {
       await updateProfile(cred.user, { displayName: displayName.trim() });
     }
-    sendEmailVerification(cred.user).catch(() => {});
     upsertUserProfile(cred.user).catch(() => {});
-  };
-
-  const resendVerificationEmail = async (): Promise<boolean> => {
-    if (!isFirebaseConfigured || !auth || !auth.currentUser) {
-      throw new Error('Aucun utilisateur connecté.');
-    }
-    if (auth.currentUser.emailVerified) return false;
-    await sendEmailVerification(auth.currentUser);
-    return true;
-  };
-
-  const reloadAndVerifyUser = async (): Promise<boolean> => {
-    if (!isFirebaseConfigured || !auth || !auth.currentUser) return false;
-    await auth.currentUser.reload();
-    setUser(auth.currentUser);
-    setUserVersion((v) => v + 1);
-    if (auth.currentUser.emailVerified) {
-      await auth.currentUser.getIdToken(true);
-      await activerSyncCloud(auth.currentUser);
-      return true;
-    }
-    return false;
   };
 
   const forceSyncNow = async (): Promise<boolean> => {
@@ -139,18 +168,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    clearAuthAccessCache(APP_ID);
     arreterListenersFirestore();
     reinitialiserEtatCloud();
     if (isFirebaseConfigured && auth) {
       await signOut(auth);
     }
     setUser(null);
+    setAccessStatus(null);
+    setOfflineUnverified(false);
   };
 
   const value: AuthState = {
     user,
     email: user?.email?.toLowerCase() ?? null,
     loading,
+    accessStatus,
+    offlineUnverified,
     cloud,
     modalOpen,
     openAuthModal: () => setModalOpen(true),
@@ -158,8 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     loginWithEmail,
     registerWithEmail,
-    resendVerificationEmail,
-    reloadAndVerifyUser,
+    recheckAccess,
     forceSyncNow,
     logout,
   };

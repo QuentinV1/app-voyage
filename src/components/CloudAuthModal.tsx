@@ -39,8 +39,6 @@ export function CloudAuthModal() {
     login,
     loginWithEmail,
     registerWithEmail,
-    resendVerificationEmail,
-    reloadAndVerifyUser,
     forceSyncNow,
     logout,
   } = useAuth();
@@ -50,15 +48,12 @@ export function CloudAuthModal() {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [syncErrorLocal, setSyncErrorLocal] = useState<string | null>(null);
-  const [unverifiedMsg, setUnverifiedMsg] = useState<string>(
-    'Vérifiez votre boîte mail (ou utilisez « Continuer avec Google »).',
-  );
   const [busy, setBusy] = useState(false);
   const [activeTab, setActiveTab] = useState<'account' | 'access'>('account');
   const [accessStatus, setAccessStatus] = useState<AccessStatus | null>(null);
 
   useEffect(() => {
-    if (!modalOpen || !user?.email || !user.emailVerified) {
+    if (!modalOpen || !user?.email) {
       setAccessStatus(null);
       setActiveTab('account');
       return;
@@ -73,7 +68,7 @@ export function CloudAuthModal() {
     return () => {
       cancelled = true;
     };
-  }, [modalOpen, user?.email, user?.emailVerified]);
+  }, [modalOpen, user?.email]);
 
   const handleEmailAuth = async (isRegister: boolean) => {
     if (!email.trim() || !password) {
@@ -116,36 +111,6 @@ export function CloudAuthModal() {
       await forceSyncNow();
     } catch (err) {
       setSyncErrorLocal((err as Error).message || 'Impossible de synchroniser.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleResendVerif = async () => {
-    setBusy(true);
-    try {
-      const sent = await resendVerificationEmail();
-      setUnverifiedMsg(
-        sent
-          ? "E-mail de vérification envoyé ! Vérifiez votre boîte de réception (et les spams), puis cliquez sur « J'ai vérifié »."
-          : 'Votre adresse est déjà vérifiée.',
-      );
-    } catch (err) {
-      setUnverifiedMsg((err as Error).message || "Impossible d'envoyer l'e-mail de vérification.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleCheckVerif = async () => {
-    setBusy(true);
-    try {
-      const verified = await reloadAndVerifyUser();
-      if (!verified) {
-        setUnverifiedMsg("Adresse toujours non vérifiée. Cliquez d'abord sur le lien reçu par e-mail.");
-      }
-    } catch (err) {
-      setUnverifiedMsg((err as Error).message || 'Erreur lors de la vérification.');
     } finally {
       setBusy(false);
     }
@@ -305,39 +270,6 @@ export function CloudAuthModal() {
               </div>
             )}
 
-            {!user.emailVerified && (
-              <div
-                id="auth-unverified-box"
-                className="rounded-xl border border-amber-300 bg-amber-50/80 p-3 text-xs text-amber-900"
-              >
-                <div className="mb-1 font-bold text-amber-800">Adresse e-mail non vérifiée</div>
-                <div id="auth-unverified-msg" className="mb-2.5 text-amber-700">
-                  {unverifiedMsg}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    id="btn-resend-verif"
-                    className="px-3 py-1.5 text-xs"
-                    disabled={busy}
-                    onClick={handleResendVerif}
-                  >
-                    Renvoyer l'e-mail de vérification
-                  </Button>
-                  <Button
-                    type="button"
-                    id="btn-check-verif"
-                    className="px-3 py-1.5 text-xs"
-                    disabled={busy}
-                    onClick={handleCheckVerif}
-                  >
-                    J'ai vérifié
-                  </Button>
-                </div>
-              </div>
-            )}
-
             <div className="flex flex-col gap-2">
               <Button type="button" id="btn-force-sync" disabled={busy} onClick={handleForceSync}>
                 <RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />
@@ -370,7 +302,7 @@ function friendlyAuthError(codeOrMsg: string): string {
     return 'Adresse e-mail invalide.';
   }
   if (codeOrMsg.includes('permission-denied')) {
-    return 'Accès Firestore refusé (vérifiez que votre e-mail est bien vérifié et autorisé).';
+    return 'Accès Firestore refusé (vérifiez que votre compte est bien autorisé).';
   }
   return codeOrMsg;
 }
