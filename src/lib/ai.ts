@@ -4,7 +4,9 @@ import { CATEGORY_KEYS } from './categories';
 import { compactJsonForAi, tryParseWanderlogJson } from './wanderlog';
 import type { Category, Trip } from './types';
 
-const MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.8-flash';
+const PRIMARY_MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.8-flash';
+const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
+const MODELS = PRIMARY_MODEL === FALLBACK_MODEL ? [PRIMARY_MODEL] : [PRIMARY_MODEL, FALLBACK_MODEL];
 
 /* ------------------------------------------------------------------ */
 /* Schéma de sortie structurée                                         */
@@ -61,20 +63,40 @@ export interface AiItinerary {
   source?: 'json' | 'ai';
 }
 
-function model() {
+function getModel(modelName: string) {
   const ai = getAI(app, { backend: new GoogleAIBackend() });
   return getGenerativeModel(ai, {
-    model: MODEL,
+    model: modelName,
     generationConfig: { responseMimeType: 'application/json', responseSchema: itinerarySchema, temperature: 0.4 },
   });
 }
 
+function isQuotaError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /429|quota|rate[- ]?limit|resource[- ]?exhausted/i.test(msg);
+}
+
 async function run(parts: (string | Part)[]): Promise<AiItinerary> {
-  const res = await model().generateContent(parts);
-  const parsed = JSON.parse(res.response.text()) as AiItinerary;
-  parsed.days ??= [];
-  parsed.ideas ??= [];
-  return parsed;
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw new Error('Appareil hors ligne : la fonctionnalité IA nécessite une connexion internet.');
+  }
+  let lastError: unknown;
+  for (const modelName of MODELS) {
+    try {
+      const res = await getModel(modelName).generateContent(parts);
+      const parsed = JSON.parse(res.response.text()) as AiItinerary;
+      parsed.days ??= [];
+      parsed.ideas ??= [];
+      return parsed;
+    } catch (err) {
+      lastError = err;
+      if (!isQuotaError(err)) throw err;
+    }
+  }
+  if (isQuotaError(lastError)) {
+    throw new Error('Quota quotidien Gemini atteint pour aujourd’hui. Réessaie plus tard ou utilise un import JSON direct (sans quota IA).');
+  }
+  throw lastError;
 }
 
 function tripContext(trip: Trip) {
