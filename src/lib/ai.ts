@@ -76,25 +76,45 @@ function isQuotaError(err: unknown): boolean {
   return /429|quota|rate[- ]?limit|resource[- ]?exhausted/i.test(msg);
 }
 
+function isTransientError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /\b50[0234]\b|high demand|overloaded|unavailable|temporarily/i.test(msg);
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function run(parts: (string | Part)[]): Promise<AiItinerary> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     throw new Error('Appareil hors ligne : la fonctionnalité IA nécessite une connexion internet.');
   }
   let lastError: unknown;
   for (const modelName of MODELS) {
-    try {
-      const res = await getModel(modelName).generateContent(parts);
-      const parsed = JSON.parse(res.response.text()) as AiItinerary;
-      parsed.days ??= [];
-      parsed.ideas ??= [];
-      return parsed;
-    } catch (err) {
-      lastError = err;
-      if (!isQuotaError(err)) throw err;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await getModel(modelName).generateContent(parts);
+        const parsed = JSON.parse(res.response.text()) as AiItinerary;
+        parsed.days ??= [];
+        parsed.ideas ??= [];
+        return parsed;
+      } catch (err) {
+        lastError = err;
+        if (isQuotaError(err)) break;
+        if (isTransientError(err)) {
+          if (attempt === 0) {
+            await sleep(1200);
+            continue;
+          }
+          break;
+        }
+        throw err;
+      }
     }
   }
   if (isQuotaError(lastError)) {
     throw new Error('Quota quotidien Gemini atteint pour aujourd’hui. Réessaie plus tard ou utilise un import JSON direct (sans quota IA).');
+  }
+  if (isTransientError(lastError)) {
+    throw new Error('Les serveurs Gemini sont temporairement saturés (pic de demande). Réessaie dans quelques secondes.');
   }
   throw lastError;
 }
