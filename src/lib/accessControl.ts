@@ -360,3 +360,21 @@ export async function removeAppMember(
   }
   await deleteDoc(doc(db, 'hub_apps', appId, 'members', target));
 }
+
+export async function listShareableAppUsers(
+  db: Firestore | null | undefined,
+  appId: string,
+): Promise<WhitelistEntry[]> {
+  if (!db) return [];
+  try {
+    const configured = await isAppConfigured(db, appId);
+    if (configured) {
+      return await listAppMembers(db, appId);
+    }
+    const globals = await listGlobalWhitelist(db);
+    if (globals.length > 0) return globals;
+    return INITIAL_GLOBAL_WHITELIST.map((u) => ({ ...u }));
+  } catch {
+    return [];
+  }
+}

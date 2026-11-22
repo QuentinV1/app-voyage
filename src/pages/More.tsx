@@ -23,6 +23,8 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
+import { db } from '../lib/firebase';
+import { listShareableAppUsers, type WhitelistEntry } from '../lib/accessControl';
 import { normalizeEmails, updateTrip } from '../lib/db';
 import {
   buildWanderlogText,
@@ -48,6 +50,12 @@ export default function More() {
   const [showOtherApps, setShowOtherApps] = useState(false);
   const [showWanderlogExport, setShowWanderlogExport] = useState(false);
   const [wanderlogCopied, setWanderlogCopied] = useState(false);
+  const [appWhitelist, setAppWhitelist] = useState<WhitelistEntry[]>([]);
+
+  useEffect(() => {
+    if (!email) return;
+    listShareableAppUsers(db, 'app-voyage').then(setAppWhitelist).catch(() => {});
+  }, [email]);
 
   useEffect(() => {
     if (!showOtherApps) return;
@@ -165,6 +173,28 @@ export default function More() {
             Ajouter
           </Button>
         </div>
+        {appWhitelist.filter((u) => !trip.memberEmails.includes(u.email)).length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Membres autorisés sur l&apos;app (ajout en 1 clic)
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {appWhitelist
+                .filter((u) => !trip.memberEmails.includes(u.email))
+                .map((u) => (
+                  <button
+                    key={u.email}
+                    type="button"
+                    onClick={() => updateTrip(trip.id, { memberEmails: [...trip.memberEmails, u.email] })}
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                    title={u.email}
+                  >
+                    <span>+ {u.displayName || u.email}</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
         <p className="text-xs text-slate-500">
           Chaque membre ajouté voit et modifie le planning, les idées et le carnet en temps réel avec son compte (Google ou e-mail).
         </p>
