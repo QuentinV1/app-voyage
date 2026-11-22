@@ -50,7 +50,7 @@ export default function DayView() {
         <input
           key={`t-${date}`}
           className={inputClass}
-          placeholder="Titre (ex : Kyoto zen)"
+          placeholder="Titre (ex : Balade au centre)"
           defaultValue={info?.title ?? ''}
           onBlur={(e) => e.target.value !== (info?.title ?? '') && setDayInfo(trip.id, date, { title: e.target.value })}
         />

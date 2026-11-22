@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
-import { JAPAN_CENTER, PLACE_FIELDS } from '../lib/places';
+import { PLACE_FIELDS } from '../lib/places';
 import { inputClass } from './ui';
 
 interface Props {
   onPick: (place: google.maps.places.Place) => void;
   autoFocus?: boolean;
+  locationBias?: { lat: number; lng: number };
 }
 
 /** Champ de recherche Google Places (API « New ») avec suggestions */
-export default function PlaceSearch({ onPick, autoFocus }: Props) {
+export default function PlaceSearch({ onPick, autoFocus, locationBias }: Props) {
   const lib = useMapsLibrary('places');
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState<google.maps.places.PlacePrediction[]>([]);
@@ -35,9 +36,7 @@ export default function PlaceSearch({ onPick, autoFocus }: Props) {
           input,
           sessionToken: sessionToken ?? undefined,
           language: 'fr',
-          region: 'jp',
-          includedRegionCodes: ['jp'],
-          locationBias: JAPAN_CENTER,
+          ...(locationBias ? { locationBias } : {}),
         });
         if (!cancelled) {
           setSuggestions(suggestions.map((s) => s.placePrediction).filter((p): p is google.maps.places.PlacePrediction => !!p));
@@ -76,7 +75,7 @@ export default function PlaceSearch({ onPick, autoFocus }: Props) {
     <div className="space-y-2">
       <input
         className={inputClass}
-        placeholder="🔎 Temple, restaurant, quartier…"
+        placeholder="🔎 Restaurant, monument, quartier…"
         value={input}
         autoFocus={autoFocus}
         onChange={(e) => setInput(e.target.value)}

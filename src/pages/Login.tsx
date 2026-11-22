@@ -48,8 +48,8 @@ export default function Login() {
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand text-white shadow-md">
           <Compass className="h-9 w-9" />
         </div>
-        <h1 className="text-3xl font-bold text-slate-900">Voyage Japon</h1>
-        <p className="text-sm text-slate-500">Planifions et partageons notre aventure ensemble</p>
+        <h1 className="text-3xl font-bold text-slate-900">Horizons</h1>
+        <p className="text-sm text-slate-500">Planifions et partageons nos voyages ensemble</p>
       </div>
 
       <Card className="w-full max-w-sm space-y-4 p-5">

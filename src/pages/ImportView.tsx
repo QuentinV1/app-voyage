@@ -23,10 +23,16 @@ export default function ImportView() {
   const [result, setResult] = useState<AiItinerary | null>(null);
 
   const analyse = async () => {
-    setBusy('Gemini lit ton planning…');
+    setBusy(file?.name.toLowerCase().endsWith('.json') || text.trim().startsWith('{') ? 'Lecture du planning…' : 'Gemini lit ton planning…');
     setError(null);
     try {
-      setResult(await importItinerary(trip, text, file));
+      const parsed = await importItinerary(trip, text, file);
+      const count = parsed.days.reduce((n, d) => n + d.places.length, 0) + (parsed.ideas?.length ?? 0);
+      if (count === 0) {
+        setError('Aucun lieu trouvé dans ce fichier ou texte. Vérifie le format ou essaie un export PDF/texte.');
+        return;
+      }
+      setResult(parsed);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -47,10 +53,24 @@ export default function ImportView() {
       const out: NewPlace[] = [];
       let n = 0;
       for (const { p, date, city } of items) {
-        setBusy(`Localisation des lieux sur Google Maps… ${++n}/${items.length}`);
         const c = p.city ?? city;
-        const gp = lib ? await searchPlace(lib, c ? `${p.name}, ${c}` : p.name) : null;
         const base = { date, time: p.time, notes: p.notes, addedBy: `📥 Import (${email ?? ''})` };
+        if (p.lat != null && p.lng != null) {
+          out.push({
+            ...base,
+            name: p.name,
+            city: c,
+            category: p.category,
+            lat: p.lat,
+            lng: p.lng,
+            address: p.address,
+            googlePlaceId: p.googlePlaceId,
+            googleMapsUri: p.googleMapsUri,
+          });
+          continue;
+        }
+        setBusy(`Localisation des lieux sur Google Maps… ${++n}/${items.length}`);
+        const gp = lib ? await searchPlace(lib, c ? `${p.name}, ${c}` : p.name) : null;
         out.push(gp ? { ...fromGooglePlace(gp, base), category: p.category } : { ...base, name: p.name, city: c, category: p.category });
       }
       setBusy('Enregistrement…');
@@ -78,7 +98,7 @@ export default function ImportView() {
       <div className="space-y-4 p-4">
         <h2 className="text-xl font-bold">Aperçu de l'import</h2>
         <p className="text-sm text-slate-500">
-          {total} lieux trouvés. Vérifie puis valide : chaque lieu sera localisé sur Google Maps.
+          {total} lieux trouvés{result.source === 'json' ? ' (lecture directe du JSON)' : ''}. Vérifie puis valide : les lieux sans coordonnées seront localisés sur Google Maps.
         </p>
         {result.days.map((d) => (
           <Card key={d.date} className="p-4">
@@ -126,11 +146,10 @@ export default function ImportView() {
       <div>
         <h2 className="text-xl font-bold">📥 Importer un planning</h2>
         <p className="text-sm text-slate-500">
-          Depuis Wanderlog : exporte ou imprime ton voyage en <b>PDF</b>, ou copie le texte de l'itinéraire, ou fais des
-          captures d'écran. Gemini replace chaque lieu au bon jour.
+          Depuis Wanderlog : importe un export <b>JSON</b>, <b>PDF</b>, <b>KML</b>, des captures d'écran ou colle le texte de l'itinéraire.
         </p>
       </div>
-      <Field label="Fichier (PDF, image, KML, CSV, TXT…)">
+      <Field label="Fichier (JSON, PDF, image, KML, CSV, TXT…)">
         <input
           type="file"
           accept=".pdf,.txt,.csv,.json,.kml,.gpx,.xml,.md,.html,image/*"
@@ -138,18 +157,18 @@ export default function ImportView() {
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
       </Field>
-      <Field label="… et/ou texte collé">
+      <Field label="… et/ou texte ou JSON collé">
         <textarea
           className={inputClass}
           rows={8}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={'Jour 1 – Tokyo\n- Senso-ji\n- Déjeuner à Ichiran Shibuya\n…'}
+          placeholder={'Jour 1 – Centre historique\n- Visite du quartier\n- Déjeuner au marché local\n…'}
         />
       </Field>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <Button className="w-full" disabled={!file && !text.trim()} onClick={analyse}>
-        ✨ Analyser avec Gemini
+        ✨ Analyser le planning
       </Button>
     </div>
   );

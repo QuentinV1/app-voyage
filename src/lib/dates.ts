@@ -9,6 +9,12 @@ function toIso(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+export function addDays(date: string, delta: number): string {
+  const d = parse(date);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return toIso(d);
+}
+
 export function listDates(start: string, end: string): string[] {
   if (!start || !end) return [];
   const out: string[] = [];

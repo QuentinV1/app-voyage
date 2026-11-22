@@ -13,8 +13,9 @@ import type { User } from 'firebase/auth';
 import { cleanForFirestore, db, isFirebaseConfigured } from './firebase';
 import type { DayInfo, JournalEntry, NewJournalEntry, NewPlace, Place, Trip, UserProfile } from './types';
 
-export const STORAGE_KEY = 'voyage_japon_data_v1';
-export const LAST_UID_KEY = 'voyage_japon_last_uid';
+export const STORAGE_KEY = 'horizons_data_v1';
+export const LAST_UID_KEY = 'horizons_last_uid';
+const LEGACY_STORAGE_KEY = 'voyage_japon_data_v1';
 
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
@@ -91,7 +92,7 @@ export function getCloudSnapshot(): CloudState {
 function loadLocalStore(): LocalStoreData {
   if (typeof window === 'undefined') return DEFAULT_STORE;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return { ...DEFAULT_STORE };
     const parsed = JSON.parse(raw) as Partial<LocalStoreData>;
     return {

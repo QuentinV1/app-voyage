@@ -1,13 +1,13 @@
 import type { Category } from './types';
 
 export const CATEGORIES: Record<Category, { label: string; emoji: string }> = {
-  food: { label: 'Restaurant / café', emoji: '🍜' },
-  temple: { label: 'Temple / sanctuaire', emoji: '⛩️' },
-  sight: { label: 'Visite / musée', emoji: '🏯' },
-  nature: { label: 'Nature / parc', emoji: '🌸' },
+  food: { label: 'Restaurant / café', emoji: '🍽️' },
+  temple: { label: 'Patrimoine / culte', emoji: '🏛️' },
+  sight: { label: 'Visite / musée', emoji: '📸' },
+  nature: { label: 'Nature / parc', emoji: '🌿' },
   shopping: { label: 'Shopping', emoji: '🛍️' },
   hotel: { label: 'Hébergement', emoji: '🏨' },
-  transport: { label: 'Transport', emoji: '🚄' },
+  transport: { label: 'Transport', emoji: '🚆' },
   other: { label: 'Autre', emoji: '📍' },
 };
 

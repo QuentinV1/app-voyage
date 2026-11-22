@@ -84,7 +84,7 @@ export default function AiSuggestSheet({ open, onClose, date, defaultCity, exist
       ) : results.length === 0 ? (
         <div className="space-y-4">
           <Field label="Ville / quartier">
-            <input className={inputClass} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Kyoto, Asakusa…" />
+            <input className={inputClass} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Rome, Lisbonne, Tokyo…" />
           </Field>
           <Field label="Vos envies">
             <textarea
@@ -92,7 +92,7 @@ export default function AiSuggestSheet({ open, onClose, date, defaultCity, exist
               rows={3}
               value={wishes}
               onChange={(e) => setWishes(e.target.value)}
-              placeholder="Temples tôt le matin pour éviter la foule, ramen le midi, pas trop de marche…"
+              placeholder="Visites tôt le matin pour éviter la foule, resto local le midi, pas trop de marche…"
             />
           </Field>
           {error && <p className="text-sm text-red-600">{error}</p>}

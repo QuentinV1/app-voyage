@@ -4,8 +4,11 @@ import {
   Calendar,
   Check,
   Cloud,
+  Copy,
   Download,
   ExternalLink,
+  FileCode2,
+  FileJson,
   FileSpreadsheet,
   FileText,
   HardDriveDownload,
@@ -13,6 +16,7 @@ import {
   LogOut,
   Share2,
   Smartphone,
+  Upload,
   Users,
   Wifi,
   WifiOff,
@@ -20,10 +24,17 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { normalizeEmails, updateTrip } from '../lib/db';
-import { exportTripCsv, exportTripExcel } from '../lib/export';
+import {
+  buildWanderlogText,
+  exportTripCsv,
+  exportTripExcel,
+  exportWanderlogHtml,
+  exportWanderlogJson,
+  exportWanderlogTextFile,
+} from '../lib/export';
 import { loadTripSnapshot, saveTripSnapshot } from '../lib/offline';
 import { useTripCtx } from '../lib/tripContext';
-import { Button, Card, Field, inputClass } from '../components/ui';
+import { Button, Card, Field, Sheet, inputClass } from '../components/ui';
 
 export default function More() {
   const { trip, places, days, journal, memberProfiles, dayIndex, isOnline } = useTripCtx();
@@ -35,6 +46,8 @@ export default function More() {
   const [shareCopied, setShareCopied] = useState(false);
   const [offlineSavedAt, setOfflineSavedAt] = useState<number | null>(() => loadTripSnapshot(trip.id)?.savedAt ?? null);
   const [showOtherApps, setShowOtherApps] = useState(false);
+  const [showWanderlogExport, setShowWanderlogExport] = useState(false);
+  const [wanderlogCopied, setWanderlogCopied] = useState(false);
 
   useEffect(() => {
     if (!showOtherApps) return;
@@ -85,6 +98,18 @@ export default function More() {
   const prepareOffline = () => {
     const savedAt = saveTripSnapshot(trip.id, { trip, places, days, journal });
     if (savedAt) setOfflineSavedAt(savedAt);
+  };
+
+  const wanderlogText = showWanderlogExport ? buildWanderlogText(trip, places, days, dayIndex) : '';
+
+  const copyWanderlogText = async () => {
+    try {
+      await navigator.clipboard.writeText(wanderlogText);
+      setWanderlogCopied(true);
+      setTimeout(() => setWanderlogCopied(false), 2500);
+    } catch {
+      prompt('Copie ce texte pour Wanderlog :', wanderlogText);
+    }
   };
 
   return (
@@ -206,6 +231,13 @@ export default function More() {
         </Link>
         <button
           className="flex w-full items-center gap-3 p-4 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
+          onClick={() => setShowWanderlogExport(true)}
+        >
+          <Upload className="h-4 w-4 text-rose-500" />
+          Exporter vers Wanderlog (texte, HTML, JSON)
+        </button>
+        <button
+          className="flex w-full items-center gap-3 p-4 text-left text-sm font-medium text-slate-800 hover:bg-slate-50"
           onClick={() => exportTripExcel(trip, places, days, journal, dayIndex)}
         >
           <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
@@ -324,6 +356,84 @@ export default function More() {
           </div>
         </div>
       )}
+
+      <Sheet
+        open={showWanderlogExport}
+        onClose={() => setShowWanderlogExport(false)}
+        title="Exporter vers Wanderlog"
+      >
+        <div className="space-y-4">
+          <div className="space-y-1.5 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+            <p className="font-semibold text-slate-800">Comment importer dans Wanderlog :</p>
+            <p>
+              Wanderlog ne propose pas d'import direct de fichier CSV/JSON, mais tu peux envoyer ton voyage facilement :
+            </p>
+            <ul className="list-disc space-y-1 pl-4">
+              <li>
+                <b>Option 1 (rapide) :</b> copie le texte ci-dessous et colle-le dans Wanderlog via{' '}
+                <i>« Import from anywhere »</i> ou l'assistant IA.
+              </li>
+              <li>
+                <b>Option 2 (extension Chrome Wanderlog) :</b> télécharge la <b>page HTML</b>, ouvre-la dans Chrome, puis
+                clique sur l'extension Wanderlog pour ajouter les lieux.
+              </li>
+            </ul>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500">
+                Aperçu ({places.length} lieu{places.length > 1 ? 'x' : ''})
+              </span>
+              <Button
+                variant="primary"
+                className="px-3 py-1.5 text-xs"
+                disabled={places.length === 0}
+                onClick={copyWanderlogText}
+              >
+                {wanderlogCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {wanderlogCopied ? 'Copié !' : 'Copier le texte'}
+              </Button>
+            </div>
+            <textarea
+              readOnly
+              rows={8}
+              value={wanderlogText}
+              className={`${inputClass} font-mono text-xs leading-relaxed text-slate-700`}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Button
+              variant="secondary"
+              className="text-xs"
+              disabled={places.length === 0}
+              onClick={() => exportWanderlogTextFile(trip, places, days, dayIndex)}
+            >
+              <FileText className="h-4 w-4 text-slate-600" />
+              Fichier .txt
+            </Button>
+            <Button
+              variant="secondary"
+              className="text-xs"
+              disabled={places.length === 0}
+              onClick={() => exportWanderlogHtml(trip, places, days, dayIndex)}
+            >
+              <FileCode2 className="h-4 w-4 text-rose-500" />
+              Page HTML
+            </Button>
+            <Button
+              variant="secondary"
+              className="text-xs"
+              disabled={places.length === 0}
+              onClick={() => exportWanderlogJson(trip, places, days, dayIndex)}
+            >
+              <FileJson className="h-4 w-4 text-sky-600" />
+              JSON structuré
+            </Button>
+          </div>
+        </div>
+      </Sheet>
     </div>
   );
 }

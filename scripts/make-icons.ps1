@@ -7,15 +7,26 @@ function New-Icon([int]$size, [string]$name) {
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.SmoothingMode = 'AntiAlias'
   $s = $size / 512.0
-  $g.Clear([System.Drawing.Color]::White)
-  $red = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#be123c'))
-  $dark = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#1e293b'))
-  $g.FillEllipse($red, 136 * $s, 110 * $s, 240 * $s, 240 * $s)
-  $pts = @(@(96,420),@(200,300),@(256,360),@(320,280),@(416,420)) | ForEach-Object { New-Object System.Drawing.PointF ($_[0]*$s), ($_[1]*$s) }
-  $g.FillPolygon($dark, [System.Drawing.PointF[]]$pts)
-  $snow = @(@(286,316),@(320,280),@(354,328)) | ForEach-Object { New-Object System.Drawing.PointF ($_[0]*$s), ($_[1]*$s) }
-  $g.FillPolygon([System.Drawing.Brushes]::White, [System.Drawing.PointF[]]$snow)
+
+  $brand = [System.Drawing.ColorTranslator]::FromHtml('#be123c')
+  $softRose = [System.Drawing.ColorTranslator]::FromHtml('#fecdd3')
+  $g.Clear($brand)
+
+  $pen = New-Object System.Drawing.Pen ([System.Drawing.Color]::White), (22 * $s)
+  $g.DrawEllipse($pen, 102 * $s, 102 * $s, 308 * $s, 308 * $s)
+
+  $ne = @(@(356,156),@(236,236),@(276,276)) | ForEach-Object { New-Object System.Drawing.PointF ($_[0]*$s), ($_[1]*$s) }
+  $g.FillPolygon([System.Drawing.Brushes]::White, [System.Drawing.PointF[]]$ne)
+
+  $roseBrush = New-Object System.Drawing.SolidBrush $softRose
+  $sw = @(@(156,356),@(236,236),@(276,276)) | ForEach-Object { New-Object System.Drawing.PointF ($_[0]*$s), ($_[1]*$s) }
+  $g.FillPolygon($roseBrush, [System.Drawing.PointF[]]$sw)
+
+  $brandBrush = New-Object System.Drawing.SolidBrush $brand
+  $g.FillEllipse($brandBrush, 238 * $s, 238 * $s, 36 * $s, 36 * $s)
+
   $bmp.Save((Join-Path $out $name), [System.Drawing.Imaging.ImageFormat]::Png)
+  $pen.Dispose(); $roseBrush.Dispose(); $brandBrush.Dispose()
   $g.Dispose(); $bmp.Dispose()
 }
 

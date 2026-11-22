@@ -121,8 +121,8 @@ export default function MapView() {
 
       <Map
         mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID'}
-        defaultCenter={{ lat: 35.68, lng: 139.76 }}
-        defaultZoom={6}
+        defaultCenter={{ lat: 20, lng: 0 }}
+        defaultZoom={2}
         gestureHandling="greedy"
         disableDefaultUI
         clickableIcons={false}

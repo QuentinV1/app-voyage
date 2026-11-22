@@ -82,7 +82,7 @@ export default function TripList() {
 function NewTripSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { email } = useAuth();
   const navigate = useNavigate();
-  const [name, setName] = useState('Japon');
+  const [name, setName] = useState('');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [members, setMembers] = useState('');
@@ -113,7 +113,7 @@ function NewTripSheet({ open, onClose }: { open: boolean; onClose: () => void })
     <Sheet open={open} onClose={onClose} title="Nouveau voyage">
       <div className="space-y-4">
         <Field label="Nom">
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
+          <input className={inputClass} placeholder="ex : Italie, Japon, Road trip…" value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Départ">

@@ -161,7 +161,7 @@ export function JournalFormSheet({
         <Field label="Lieu / Étape">
           <input
             className={inputClass}
-            placeholder="ex : Fushimi Inari, Kyoto"
+            placeholder="ex : Centre historique, Lisbonne"
             maxLength={120}
             value={location}
             onChange={(e) => setLocation(e.target.value)}

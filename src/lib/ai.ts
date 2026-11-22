@@ -1,6 +1,7 @@
 import { getAI, getGenerativeModel, GoogleAIBackend, Schema, type Part } from 'firebase/ai';
 import { app } from './firebase';
 import { CATEGORY_KEYS } from './categories';
+import { compactJsonForAi, tryParseWanderlogJson } from './wanderlog';
 import type { Category, Trip } from './types';
 
 const MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.8-flash';
@@ -12,7 +13,7 @@ const MODEL = import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.8-flash';
 const placeSchema = Schema.object({
   properties: {
     name: Schema.string({ description: 'Nom du lieu, tel que trouvable sur Google Maps' }),
-    city: Schema.string({ description: 'Ville ou quartier au Japon' }),
+    city: Schema.string({ description: 'Ville ou quartier' }),
     category: Schema.enumString({ enum: CATEGORY_KEYS }),
     time: Schema.string({ description: 'Heure au format HH:mm si connue' }),
     notes: Schema.string({ description: 'Notes utiles, courtes, en français' }),
@@ -47,11 +48,17 @@ export interface AiPlace {
   category: Category;
   time?: string;
   notes?: string;
+  lat?: number;
+  lng?: number;
+  address?: string;
+  googlePlaceId?: string;
+  googleMapsUri?: string;
 }
 
 export interface AiItinerary {
   days: { date: string; title?: string; city?: string; places: AiPlace[] }[];
   ideas?: AiPlace[];
+  source?: 'json' | 'ai';
 }
 
 function model() {
@@ -71,7 +78,7 @@ async function run(parts: (string | Part)[]): Promise<AiItinerary> {
 }
 
 function tripContext(trip: Trip) {
-  return `Voyage « ${trip.name} » au Japon, du ${trip.startDate} au ${trip.endDate}.`;
+  return `Voyage « ${trip.name} », du ${trip.startDate} au ${trip.endDate}.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -89,8 +96,22 @@ export async function fileToPart(file: File): Promise<Part> {
 }
 
 const TEXT_EXT = /\.(txt|csv|json|kml|gpx|xml|md|html?)$/i;
+const JSON_EXT = /\.json$/i;
 
 export async function importItinerary(trip: Trip, text: string, file: File | null): Promise<AiItinerary> {
+  const fileText = file && TEXT_EXT.test(file.name) ? await file.text() : null;
+
+  // 1. Tentative de parsing direct (instantané, sans quota IA) pour les JSON Wanderlog / GeoJSON / génériques
+  if (file && fileText !== null && (JSON_EXT.test(file.name) || fileText.trim().startsWith('{') || fileText.trim().startsWith('['))) {
+    const parsed = tryParseWanderlogJson(fileText, trip);
+    if (parsed) return { ...parsed, source: 'json' };
+  }
+  if (!file && (text.trim().startsWith('{') || text.trim().startsWith('['))) {
+    const parsed = tryParseWanderlogJson(text, trip);
+    if (parsed) return { ...parsed, source: 'json' };
+  }
+
+  // 2. Fallback Gemini (en compactant les gros JSON pour éviter les dépassements de tokens)
   const parts: (string | Part)[] = [
     `Tu es un assistant qui convertit un planning de voyage existant (export Wanderlog, PDF, KML, texte libre, capture d'écran…) en données structurées.
 ${tripContext(trip)}
@@ -104,11 +125,20 @@ Règles :
 - Ignore les trajets/transports génériques sauf gares, aéroports et hôtels.`,
   ];
   if (file) {
-    if (TEXT_EXT.test(file.name)) parts.push(`Contenu du fichier ${file.name} :\n${await file.text()}`);
-    else parts.push(await fileToPart(file));
+    if (fileText !== null) {
+      const content = JSON_EXT.test(file.name) ? compactJsonForAi(fileText) : fileText;
+      parts.push(`Contenu du fichier ${file.name} :\n${content}`);
+    } else {
+      parts.push(await fileToPart(file));
+    }
   }
-  if (text.trim()) parts.push(`Texte collé :\n${text}`);
-  return run(parts);
+  if (text.trim()) {
+    const trimmed = text.trim();
+    const content = trimmed.startsWith('{') || trimmed.startsWith('[') ? compactJsonForAi(trimmed) : text;
+    parts.push(`Texte collé :\n${content}`);
+  }
+  const res = await run(parts);
+  return { ...res, source: 'ai' };
 }
 
 /* ------------------------------------------------------------------ */
@@ -122,7 +152,7 @@ export async function suggestForDay(
   wishes: string,
   existing: string[],
 ): Promise<AiPlace[]> {
-  const prompt = `Tu es un expert du Japon qui aide un groupe de 6 amis/famille français à planifier leur voyage.
+  const prompt = `Tu es un expert en voyage qui aide un groupe d'amis ou de famille francophone à planifier leur séjour.
 ${tripContext(trip)}
 Propose une journée pour le ${date} à ${city || 'une ville à choisir selon le contexte'}.
 Envies du groupe : ${wishes || 'mix de culture, food locale et balade'}.

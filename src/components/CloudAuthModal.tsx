@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { Cloud, RefreshCw, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Cloud, RefreshCw, Shield, User } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useTrips } from '../lib/db';
+import { db } from '../lib/firebase';
+import { resolveUserAccess, type AccessStatus } from '../lib/accessControl';
+import { AccessControlPanel } from './AccessControlPanel';
 import { Button, Sheet, inputClass } from './ui';
 
 export function CloudAuthHeaderButton({ variant = 'light' }: { variant?: 'light' | 'dark' }) {
@@ -51,6 +54,26 @@ export function CloudAuthModal() {
     'Vérifiez votre boîte mail (ou utilisez « Continuer avec Google »).',
   );
   const [busy, setBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState<'account' | 'access'>('account');
+  const [accessStatus, setAccessStatus] = useState<AccessStatus | null>(null);
+
+  useEffect(() => {
+    if (!modalOpen || !user?.email || !user.emailVerified) {
+      setAccessStatus(null);
+      setActiveTab('account');
+      return;
+    }
+    let cancelled = false;
+    resolveUserAccess(db, 'app-voyage', user.email).then((status) => {
+      if (!cancelled) {
+        setAccessStatus(status);
+        if (!status.isAdmin) setActiveTab('account');
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [modalOpen, user?.email, user?.emailVerified]);
 
   const handleEmailAuth = async (isRegister: boolean) => {
     if (!email.trim() || !password) {
@@ -222,6 +245,50 @@ export function CloudAuthModal() {
           </div>
         ) : (
           <div id="auth-logged-in-panel" className="space-y-4">
+            {accessStatus?.isAdmin && (
+              <div className="flex gap-1.5 rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('account')}
+                  className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    activeTab === 'account'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Compte Cloud
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('access')}
+                  className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    activeTab === 'access'
+                      ? 'bg-white text-sky-700 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  Accès &amp; Rôles
+                </button>
+              </div>
+            )}
+
+            {accessStatus && !accessStatus.hasAppAccess && (
+              <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-xs font-medium text-red-700">
+                Votre compte n&apos;est pas autorisé sur cette application. Contactez un administrateur.
+              </div>
+            )}
+
+            {activeTab === 'access' && accessStatus?.isAdmin ? (
+              <AccessControlPanel
+                db={db}
+                user={user}
+                appId="app-voyage"
+                appName="App Voyage"
+                theme="light"
+              />
+            ) : (
+              <>
             <div className="rounded-xl bg-slate-50 p-3">
               <div className="text-[11px] font-bold uppercase text-slate-400">Connecté en tant que</div>
               <div id="auth-connected-email" className="mt-0.5 break-all text-sm font-bold text-slate-900">
@@ -280,6 +347,8 @@ export function CloudAuthModal() {
                 Se déconnecter
               </Button>
             </div>
+              </>
+            )}
           </div>
         )}
       </div>

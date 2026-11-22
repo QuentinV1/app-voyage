@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Voyage Japon',
-        short_name: 'Japon',
+        name: 'Horizons — Carnet de voyage',
+        short_name: 'Horizons',
         description: 'Planification et carnet de voyage collaboratifs',
         lang: 'fr',
         theme_color: '#be123c',

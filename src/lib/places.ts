@@ -12,9 +12,6 @@ export const PLACE_FIELDS = [
   'addressComponents',
 ];
 
-/** Centre approximatif du Japon, utilisé pour biaiser les recherches */
-export const JAPAN_CENTER = { lat: 36.2, lng: 138.25 };
-
 function cityOf(place: google.maps.places.Place): string | undefined {
   const comps = place.addressComponents ?? [];
   const find = (type: string) => comps.find((c) => c.types.includes(type))?.longText ?? undefined;
@@ -40,10 +37,11 @@ export function fromGooglePlace(
   };
 }
 
-/** Recherche texte (utilisée par l'import et l'IA) => premier résultat au Japon */
+/** Recherche texte (utilisée par l'import et l'IA) */
 export async function searchPlace(
   lib: google.maps.PlacesLibrary,
   textQuery: string,
+  locationBias?: { lat: number; lng: number },
 ): Promise<google.maps.places.Place | null> {
   try {
     const { places } = await lib.Place.searchByText({
@@ -51,8 +49,7 @@ export async function searchPlace(
       fields: PLACE_FIELDS,
       maxResultCount: 1,
       language: 'fr',
-      region: 'jp',
-      locationBias: JAPAN_CENTER,
+      ...(locationBias ? { locationBias } : {}),
     });
     return places[0] ?? null;
   } catch (e) {
